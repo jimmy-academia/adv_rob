@@ -52,9 +52,9 @@ class CustomConv2d(nn.Module):
         self.max_patches = 1280
         self.patch_buffer = None
         self.patches = None
-        self.num_centers = 128
+        self.num_centers = 256
         self.cluster_centers = None
-        self.temperature = 100
+        self.temperature = 10
 
     def reset_parameters(self):
         nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
@@ -120,6 +120,7 @@ class CustomConv2d(nn.Module):
         soft_assignments = F.softmax(-distances / self.temperature, dim=1)
         # Weighted sum of cluster centers based on the soft assignments
         transformed_patches = soft_assignments @ cluster_centers
+        transformed_patches = (transformed_patches + flat_patches)/2
         # Reshape back to the original patches' shape but with transformed values
         transformed_patches = transformed_patches.view_as(patches)
         return transformed_patches
@@ -140,6 +141,9 @@ if __name__ == '__main__':
     num_epochs = 10
     for epoch in range(num_epochs):
         running_loss = 0.0
+        correct = 0
+        total = 0
+    
         pbar = tqdm(trainloader, ncols=88, desc='train')
         for imgs, labels in pbar:
             imgs = imgs.to(device)
@@ -152,7 +156,13 @@ if __name__ == '__main__':
             optimizer.step()
             running_loss += loss.item()
 
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(trainloader)}')
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            accuracy = correct / total
+            pbar.set_postfix(acc=accuracy)
+
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(trainloader)}, Accuracy: {accuracy}')
 
     print('Training finished!')
     # torch.save(model.state_dict(), modelpath)
