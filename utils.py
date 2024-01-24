@@ -10,3 +10,4 @@ def check():
         if key not in globals():
             globals()[key] = caller_globals[key]
     code.interact(local=dict(globals(), **caller_locals))
+

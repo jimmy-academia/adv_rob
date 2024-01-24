@@ -125,6 +125,23 @@ class CustomConv2d(nn.Module):
         transformed_patches = transformed_patches.view_as(patches)
         return transformed_patches
 
+def pgd_attack(model, images, labels, epsilon, alpha, num_iter):
+    images = images.clone().detach().requires_grad_(True)
+    pbar = tqdm(range(num_iter), ncols=88, desc='attack')
+    for _ in pbar:
+        outputs = model(images)
+        loss = nn.CrossEntropyLoss()(outputs, labels)
+        grad = torch.autograd.grad(loss, images)[0]
+
+        # Add perturbation with epsilon and clip within [0, 1]
+        images = images + alpha * torch.sign(grad)
+        images = torch.clamp(images, 0, 1)
+
+        # Project the perturbed images to the epsilon ball around the original images
+        images = torch.max(torch.min(images, images + epsilon), images - epsilon)
+        images = torch.clamp(images, 0, 1)
+
+    return images.detach()
 
 if __name__ == '__main__':
     from data import get_dataloader
@@ -162,7 +179,29 @@ if __name__ == '__main__':
             accuracy = correct / total
             pbar.set_postfix(acc=accuracy)
 
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(trainloader)}, Accuracy: {accuracy}')
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(trainloader)}, Accuracy: {accuracy * 100:.2f}%')
+
+        correct = 0
+        total = 0
+        epsilon = 0.03
+        alpha = 0.01
+        num_iter = 100
+        for imgs, labels in testloader:
+            imgs = imgs.to(device)
+            labels = labels.to(device)
+            model.tau = 0.1
+            adv_imgs = pgd_attack(model, imgs, labels, epsilon, alpha, num_iter)
+
+            # transforms.ToPILImage()(adv_imgs[0]).save('sample.jpg')
+            # input('save_sample')
+            model.tau = 0.1 * 1.03 ** 128
+            outputs = model(adv_imgs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        accuracy = correct / total
+        print(f'Adversarial Accuracy: {accuracy * 100:.2f}%')
 
     print('Training finished!')
     # torch.save(model.state_dict(), modelpath)
