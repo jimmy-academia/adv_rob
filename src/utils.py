@@ -40,12 +40,12 @@ def loadj(filepath):
         return json.load(f)
 
 
-def setup_logging(log_path='logs', log_level=logging.INFO):
+def setup_logging(log_path='logs', code=0, log_level=logging.INFO):
     """
     Sets up the logging configuration.
     """
     Path(log_path).mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=f'{log_path}/experiment.log',
+    logging.basicConfig(filename=f'{log_path}/experiment_{code}.log',
                         level=log_level,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 

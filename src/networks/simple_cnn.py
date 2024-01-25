@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from pathlib import Path
+
 class SimpleCNN(nn.Module):
     def __init__(self, args):
         super(SimpleCNN, self).__init__()

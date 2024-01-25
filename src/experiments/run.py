@@ -3,6 +3,7 @@ from .eval import exp_test, exp_transfer
 from tqdm import tqdm
 
 from collections import defaultdict
+from utils import *
 
 def run_experiment(args, model, trainloader, testloader):
 
@@ -70,5 +71,5 @@ def run_experiment(args, model, trainloader, testloader):
         print_log(f'Transfer Attack Accuracy: {transfer_acc * 100:.2f}%')
         log_data['transfer_test_acc'].append(transfer_acc)
 
-    dumpj(log_data, 'log/log_data.json')
+    dumpj(log_data, args.checkpoint_dir/'log.json')
 
