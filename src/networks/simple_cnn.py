@@ -1,55 +1,112 @@
 import math
-from pathlib import Path
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-
-from tqdm import tqdm
-
-from utils import *
+import torch.optim as optim
 
 class SimpleCNN(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, args):
         super(SimpleCNN, self).__init__()
-        # Define the architecture
-        self.conv1 = CustomConv2d(in_channels=1, out_channels=16, kernel_size=(3, 3), stride=1, padding=1)
-        self.conv2 = CustomConv2d(in_channels=16, out_channels=32, kernel_size=(3, 3), stride=1, padding=1)
+        num_classes = 10 if args.dataset == 'mnist' else None
+
+        self.conv1 = CustomConv2d(args, in_channels=1, out_channels=16, kernel_size=(3, 3), stride=1, padding=1)
+        self.conv2 = CustomConv2d(args, in_channels=16, out_channels=32, kernel_size=(3, 3), stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-        self.fc = nn.Linear(32 * 7 * 7, num_classes)  # Adjust the size here depending on your input image size
-        self.temp = 1e-5
+        self.fc = nn.Linear(32 * 7 * 7, num_classes)
+        self.temp = 1e-6
+
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate)
 
     def forward(self, x):
-        # Apply custom convolutional layers
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
-
-        # Flatten the output for the fully connected layer
         x = x.view(x.size(0), -1)
-
-        # Fully connected layer
         x = self.fc(x)
         return x
 
-    def is_eval(self):
-        self.conv1.is_eval = True
-        self.conv2.is_eval = True
+    def set_mode(self, mode):
+        if mode not in ['train', 'eval']:
+            raise ValueError("mode should be 'train' or 'eval'")
+        for layer in [self.conv1, self.conv2]:
+            layer.set_mode(mode)
 
-    def is_train(self):
-        self.conv1.is_eval = False
-        self.conv2.is_eval = False
-
-    def set_temp(self):        
-        self.conv1.temp = self.temp
-        self.conv2.temp = self.temp
+    def set_temp(self, temp=None):
+        if temp is not None:
+            self.temp = temp
+        for layer in [self.conv1, self.conv2]:
+            layer.temp = self.temp
 
     def fetch_info(self):
-        info1 = self.conv1.fetch_info()
-        info2 = self.conv2.fetch_info()
-        return [info1, info2]
+        return [layer.fetch_info() for layer in [self.conv1, self.conv2]]
+
+    def create_equivalent_normal_cnn(self):
+
+        layers = []
+
+        for module in self.children():
+            if isinstance(module, CustomConv2d):
+                conv_layer = nn.Conv2d(
+                    in_channels=module.in_channels,
+                    out_channels=module.out_channels,
+                    kernel_size=module.kernel_size,
+                    stride=module.stride,
+                    padding=module.padding,
+                    dilation=module.dilation,
+                    groups=module.groups,
+                    bias=module.bias is not None
+                )
+                layers.append(conv_layer)
+            else:
+                layers.append(module)
+
+        normal_cnn = nn.Sequential(*layers)
+
+        for simple_layer, normal_layer in zip(self.children(), normal_cnn.children()):
+            if isinstance(normal_layer, nn.Conv2d):
+                normal_layer.weight.data = simple_layer.weight.clone()
+                if simple_layer.bias is not None:
+                    normal_layer.bias.data = simple_layer.bias.clone()
+            elif isinstance(normal_layer, nn.Linear):
+                normal_layer.load_state_dict(simple_layer.state_dict())
+
+        return normal_cnn
+
+    def save_param(self, checkpoint_dir='ckpt', epoch=None, filename='model.pth'):
+        """
+        Saves the model's state_dict and additional info in one file. 
+        Allows customization of the save filename.
+        """
+        checkpoint_path = Path(checkpoint_dir)
+        checkpoint_path.mkdir(parents=True, exist_ok=True)
+
+        filename_suffix = f".{epoch}" if epoch is not None else ""
+        save_path = checkpoint_path / (filename + filename_suffix)
+        save_data = {
+            'state_dict': self.state_dict(),
+            'info': self.fetch_info()
+        }
+
+        torch.save(save_data, save_path)
+
+    def load_param(self, checkpoint_dir='ckpt', epoch=None, filename='model.pth'):
+        """
+        Loads the model's state_dict and additional info from a single file.
+        """
+        filename_suffix = f".{epoch}" if epoch is not None else ""
+        load_path = Path(checkpoint_dir) / (filename + filename_suffix)
+        data = torch.load(load_path)
+        self.load_state_dict(data['state_dict'])
+
+        info = data['info']
+        self.conv1.patches, self.conv1.cluster_centers, _ = info[0]
+        self.conv2.patches, self.conv2.cluster_centers, _ = info[1]
+        self.temp = info[0][-1]
+        self.set_temp()
+
 
 class CustomConv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
+    def __init__(self, args, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
         super(CustomConv2d, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -67,9 +124,10 @@ class CustomConv2d(nn.Module):
         
         # For storing patches and cluster centers
         self.max_patches = 1280
+        self.num_centers = args.num_centers
+
         self.patch_buffer = None
         self.patches = None
-        self.num_centers = 256
         self.cluster_centers = None
         self.is_eval=False
         self.temp = 1e-5
@@ -146,60 +204,8 @@ class CustomConv2d(nn.Module):
         final_patches = final_patches.view_as(patches)
         return final_patches
 
+    def set_mode(self, mode):
+        self.is_eval = mode == 'eval'
+
     def fetch_info(self):
         return [self.patches, self.cluster_centers, self.temp]
-
-
-
-if __name__ == '__main__':
-    from data import get_dataloader
-    model = SimpleCNN()
-    trainloader, testloader = get_dataloader()
-    device = torch.device("cuda:"+str(0))
-
-    model.to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-    # training
-    num_epochs = 10
-    increment = 10 ** (1/len(trainloader))
-
-    for epoch in range(num_epochs):
-        
-        model.is_train()
-
-        running_loss = 0.0
-        correct = 0
-        total = 0
-        
-        pbar = tqdm(trainloader, ncols=88, desc='train')
-        for imgs, labels in pbar:
-            imgs = imgs.to(device)
-            labels = labels.to(device)
-
-            optimizer.zero_grad()
-            outputs = model(imgs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            accuracy = correct / total
-            pbar.set_postfix(acc=accuracy)
-
-            model.temp *= increment
-            model.set_temp()
-
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(trainloader)}, Accuracy: {accuracy * 100:.2f}%')
-        
-        model.is_eval()
-        exp_test(model, testloader)
-
-        modelpath = Path(f'ckpt/model.pth.{epoch}')
-        infopath = Path(f'ckpt/info.pth.{epoch}')
-        torch.save(model.state_dict(), modelpath)
-        torch.save(model.fetch_info(), infopath)
