@@ -43,3 +43,14 @@ if __name__ == "__main__":
     args.device = torch.device("cpu" if args.device == -1 else "cuda:"+str(args.device))
 
     main(args)
+
+# if __name__ == '__main__':
+#     from utils import *
+#     from networks import SimpleCNN
+#     model = SimpleCNN()
+
+
+# nmod = model.create_equivalent_normal_cnn()
+# a = torch.rand(3,1,28,28)
+# model(a)
+# nmod(a)

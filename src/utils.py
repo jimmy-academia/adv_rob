@@ -40,7 +40,7 @@ def loadj(filepath):
         return json.load(f)
 
 
-def setup_logging(log_path='logs', code=0, log_level=logging.INFO):
+def setup_logging(log_path='ckpt/logs', code=0, log_level=logging.INFO):
     """
     Sets up the logging configuration.
     """

@@ -2,16 +2,17 @@ import torch
 import argparse
 from networks import SimpleCNN
 from data import get_dataloader
-from experiments import run_experiment
+from experiments import run_bare
 
 from utils import *
 
+
 def main(args):
-    # Setup logging and other configurations
-    setup_logging()
+    # do bare baseline
+    setup_logging(code='default_bare')
     trainloader, testloader = get_dataloader(dataset=args.dataset, batch_size=args.batch_size)
     model = SimpleCNN(args)
-    run_experiment(args, model, trainloader, testloader)
+    run_bare(args, model, trainloader, testloader)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Experiments on Custom CNN")

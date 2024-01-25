@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import copy
+
 from pathlib import Path
 
 class SimpleCNN(nn.Module):
@@ -16,9 +18,6 @@ class SimpleCNN(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
         self.fc = nn.Linear(32 * 7 * 7, num_classes)
         self.temp = 1e-6
-
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -44,10 +43,13 @@ class SimpleCNN(nn.Module):
 
     def create_equivalent_normal_cnn(self):
 
-        layers = []
+        # Create a deep copy of the current model
+        normal_cnn = copy.deepcopy(self)
 
-        for module in self.children():
+        # Replace CustomConv2d layers with nn.Conv2d layers
+        for name, module in normal_cnn.named_children():
             if isinstance(module, CustomConv2d):
+                # Create a standard Conv2d layer with equivalent parameters
                 conv_layer = nn.Conv2d(
                     in_channels=module.in_channels,
                     out_channels=module.out_channels,
@@ -58,11 +60,27 @@ class SimpleCNN(nn.Module):
                     groups=module.groups,
                     bias=module.bias is not None
                 )
-                layers.append(conv_layer)
-            else:
-                layers.append(module)
+                setattr(normal_cnn, name, conv_layer)
 
-        normal_cnn = nn.Sequential(*layers)
+        # layers = []
+
+        # for module in self.children():
+        #     if isinstance(module, CustomConv2d):
+        #         conv_layer = nn.Conv2d(
+        #             in_channels=module.in_channels,
+        #             out_channels=module.out_channels,
+        #             kernel_size=module.kernel_size,
+        #             stride=module.stride,
+        #             padding=module.padding,
+        #             dilation=module.dilation,
+        #             groups=module.groups,
+        #             bias=module.bias is not None
+        #         )
+        #         layers.append(conv_layer)
+        #     else:
+        #         layers.append(module)
+
+        # normal_cnn = nn.Sequential(*layers)
 
         for simple_layer, normal_layer in zip(self.children(), normal_cnn.children()):
             if isinstance(normal_layer, nn.Conv2d):
@@ -211,3 +229,4 @@ class CustomConv2d(nn.Module):
 
     def fetch_info(self):
         return [self.patches, self.cluster_centers, self.temp]
+

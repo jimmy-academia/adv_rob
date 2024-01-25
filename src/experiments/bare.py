@@ -1,5 +1,5 @@
 import torch
-from .eval import exp_test, exp_transfer
+from .eval import exp_test
 from tqdm import tqdm
 
 from collections import defaultdict
@@ -9,9 +9,8 @@ def run_experiment(args, model, trainloader, testloader):
 
     #train
     log_data = defaultdict(list)
+    model = model.create_equivalent_normal_cnn()
     model.to(args.device)
-
-    increment = args.final_temp ** (1/(len(trainloader) * args.epochs))
 
     runtime = 0
     for epoch in range(args.epochs):
@@ -41,9 +40,6 @@ def run_experiment(args, model, trainloader, testloader):
             accuracy = correct / total
             pbar.set_postfix(acc=accuracy)
 
-            model.temp *= increment
-            model.set_temp()
-        
         runtime += record_runtime(start_time)
 
         training_loss = running_loss/len(trainloader)
@@ -56,22 +52,10 @@ def run_experiment(args, model, trainloader, testloader):
 
         model.save_param(args.checkpoint_dir, epoch)
         
-        model.set_mode('eval')
-        Nmod = model.create_equivalent_normal_cnn()
-
         testacc, attackacc = exp_test(args, model, testloader)
         print_log(f'Test Accuracy: {testacc * 100:.2f}%, Adversarial Accuracy: {attackacc * 100:.2f}%')
         log_data['test_acc'].append(testacc)
         log_data['attack_acc'].append(attackacc)
-
-        testacc, attackacc = exp_test(args, Nmod, testloader)
-        print_log(f'Normal Test Accuracy: {testacc * 100:.2f}%, Normal Adversarial Accuracy: {attackacc * 100:.2f}%')
-        log_data['normal_test_acc'].append(testacc)
-        log_data['normal_attack_acc'].append(attackacc)
-
-        transfer_acc = exp_transfer(args, model, Nmod, testloader, args.device)
-        print_log(f'Transfer Attack Accuracy: {transfer_acc * 100:.2f}%')
-        log_data['transfer_test_acc'].append(transfer_acc)
-
+        
     dumpj(log_data, args.checkpoint_dir/'log.json')
 
