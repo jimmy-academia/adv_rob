@@ -5,7 +5,7 @@ from tqdm import tqdm
 from collections import defaultdict
 from utils import *
 
-def run_experiment(args, model, trainloader, testloader):
+def run_bare(args, model, trainloader, testloader):
 
     #train
     log_data = defaultdict(list)

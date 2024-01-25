@@ -8,6 +8,7 @@ from pathlib import Path
 
 def main(args):
     # Setup logging and other configurations
+    
     trainloader, testloader = get_dataloader(dataset=args.dataset, batch_size=args.batch_size)
 
     # Grid search over final_temp and num_centers

@@ -1,7 +1,7 @@
 import torch
 import torchvision
 from torchvision import transforms
-DSETROOT = '../DATASET/'
+DSETROOT = '../../../DATASET/'
 TRANS = transforms.Compose([
     transforms.ToTensor(),  
     transforms.Normalize((0.5,), (0.5,))  

@@ -57,12 +57,14 @@ def main():
         print(f'>>>>>>> Epoch {epoch} <<<<<<')
         print('[cluster model]')
         testacc, attackacc = exp_test(model, testloader, device)
+        print(f'Test Accuracy: {testacc * 100:.2f}%, Adversarial Accuracy: {attackacc * 100:.2f}%')
 
         Results['cluster'][0].append(testacc)
         Results['cluster'][1].append(attackacc)
 
         print('[normal model]')
         testacc, attackacc = exp_test(Nmod, testloader, device)
+        print(f'Test Accuracy: {testacc * 100:.2f}%, Adversarial Accuracy: {attackacc * 100:.2f}%')
 
         Results['normal'][0].append(testacc)
         Results['normal'][1].append(attackacc)
@@ -70,6 +72,7 @@ def main():
         print('[transfer from normal to cluster model]')
         transfer_acc = exp_transfer(model, Nmod, testloader, device)
         Results['transfer'].append(transfer_acc)
+        print(f'Transfer Attack Accuracy: {transfer_acc * 100:.2f}%')
 
         dumpj(Results, 'result.json')
 

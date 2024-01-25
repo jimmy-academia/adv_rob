@@ -32,9 +32,7 @@ class SimpleCNN(nn.Module):
         for layer in [self.conv1, self.conv2]:
             layer.set_mode(mode)
 
-    def set_temp(self, temp=None):
-        if temp is not None:
-            self.temp = temp
+    def set_temp(self):
         for layer in [self.conv1, self.conv2]:
             layer.temp = self.temp
 
@@ -61,26 +59,6 @@ class SimpleCNN(nn.Module):
                     bias=module.bias is not None
                 )
                 setattr(normal_cnn, name, conv_layer)
-
-        # layers = []
-
-        # for module in self.children():
-        #     if isinstance(module, CustomConv2d):
-        #         conv_layer = nn.Conv2d(
-        #             in_channels=module.in_channels,
-        #             out_channels=module.out_channels,
-        #             kernel_size=module.kernel_size,
-        #             stride=module.stride,
-        #             padding=module.padding,
-        #             dilation=module.dilation,
-        #             groups=module.groups,
-        #             bias=module.bias is not None
-        #         )
-        #         layers.append(conv_layer)
-        #     else:
-        #         layers.append(module)
-
-        # normal_cnn = nn.Sequential(*layers)
 
         for simple_layer, normal_layer in zip(self.children(), normal_cnn.children()):
             if isinstance(normal_layer, nn.Conv2d):

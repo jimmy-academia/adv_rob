@@ -52,6 +52,7 @@ def run_experiment(args, model, trainloader, testloader):
         log_data['train_time'].append(runtime)
         log_data['train_loss'].append(training_loss)
         log_data['train_acc'].append(accuracy)
+        log_data['model_temp'].append(model.temp)
         print_log(f'Epoch {epoch+1}/{args.epochs}, Training Loss: {training_loss:.3f}, Accuracy: {accuracy * 100:.2f}%, runtime:{runtime:.3f}')
 
         model.save_param(args.checkpoint_dir, epoch)
