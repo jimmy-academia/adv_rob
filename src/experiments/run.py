@@ -4,19 +4,20 @@ from tqdm import tqdm
 
 from collections import defaultdict
 from utils import *
+from copy import deepcopy
 
 def run_experiment(args, model, trainloader, testloader):
 
     #train
     log_data = defaultdict(list)
     model.to(args.device)
-    model.set_temp(args.init_temp)
+    model.temp = args.init_temp
  
     increment = (args.final_temp / args.init_temp) ** (1/(len(trainloader) * args.epochs))
 
     runtime = 0
     for epoch in range(args.epochs):
-        model.set_mode('train')
+        model.train=True
         running_loss = correct = total = 0
         
         pbar = tqdm(trainloader, ncols=88, desc='train', leave=False)
@@ -43,7 +44,6 @@ def run_experiment(args, model, trainloader, testloader):
             pbar.set_postfix(acc=accuracy)
 
             model.temp *= increment
-            model.set_temp()
         
         runtime += record_runtime(start_time)
 
@@ -56,10 +56,12 @@ def run_experiment(args, model, trainloader, testloader):
         log_data['model_temp'].append(model.temp)
         print_log(f'Epoch {epoch+1}/{args.epochs}, Training Loss: {training_loss:.3f}, Accuracy: {accuracy * 100:.2f}%, runtime:{runtime:.3f}')
 
-        model.save_param(args.checkpoint_dir, epoch)
+        # model.save_param(args.checkpoint_dir, epoch)
         
-        model.set_mode('eval')
-        Nmod = model.create_equivalent_normal_cnn()
+        model.train=False
+        Nmod = deepcopy(model)
+        Nmod.temp = None
+        # Nmod = model.create_equivalent_normal_cnn()
 
         testacc, attackacc = exp_test(args, model, testloader)
         print_log(f'Test Accuracy: {testacc * 100:.2f}%, Adversarial Accuracy: {attackacc * 100:.2f}%')

@@ -7,7 +7,10 @@ from itertools import cycle
 import torch.nn as nn
 from .proto import ProtoConv2d
 
-def _simpleCNN(args, layers):
+def _simpleCNN(args, layers=[16, 'r', 'p', 32, 'r', 'p', 'f', 'l']):
+    if args.dataset == 'mnist':
+        args.input_size = 28
+        args.classes = 10
     model = ConciseCNN(args, layers)
     return model
 
@@ -21,15 +24,14 @@ class ConciseCNN(nn.Module):
 
         modules = [self._make_layer(l) for l in layers]
         self.sequential = nn.Sequential(*modules)
+        self.train = True
+        self.temp = None
 
-    def forward(self, x, center_infos_list=None):
-        
-        center_infos_iters = cycle([None]) if center_infos_list is None else iter(center_infos_list)
-
+    def forward(self, x):
         for module in self.sequential:
             # Check if the module is an instance of ProtoConv2d
             if isinstance(module, ProtoConv2d):
-                x = module(x, next(center_infos_iters))
+                x = module(x, self.train, self.temp)
             else:
                 x = module(x)
         return x
@@ -38,7 +40,7 @@ class ConciseCNN(nn.Module):
         # Define your method to create a layer
         if type(l) is int:
             if self.args.build_proto:
-                conv_layer = ProtoConv2d(self.channels, l, 3,1,1)
+                conv_layer = ProtoConv2d(self.args, self.channels, l, 3,1,1)
             else:
                 conv_layer = nn.Conv2d(self.channels, l, 3,1,1)
 

@@ -1,3 +1,3 @@
-from .simple_cnn import SimpleCNN
+from .concise_cnn import _simpleCNN
 
 
