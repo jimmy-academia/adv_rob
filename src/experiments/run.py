@@ -13,7 +13,7 @@ def run_experiment(args, model, trainloader, testloader):
     model.to(args.device)
     model.temp = args.init_temp
  
-    increment = (args.final_temp / args.init_temp) ** (1/(len(trainloader) * args.epochs))
+    increment = (args.final_temp / args.init_temp) ** (1/(len(trainloader) * args.incr_epochs))
 
     runtime = 0
     for epoch in range(args.epochs):
@@ -43,7 +43,8 @@ def run_experiment(args, model, trainloader, testloader):
             accuracy = correct / total
             pbar.set_postfix(acc=accuracy)
 
-            model.temp *= increment
+            if epoch <= args.incr_epochs:
+                model.temp *= increment
         
         runtime += record_runtime(start_time)
 
@@ -59,8 +60,8 @@ def run_experiment(args, model, trainloader, testloader):
         # model.save_param(args.checkpoint_dir, epoch)
         
         model.train=False
-        Nmod = deepcopy(model)
-        Nmod.temp = None
+        # Nmod = deepcopy(model)
+        # Nmod.temp = None
         # Nmod = model.create_equivalent_normal_cnn()
 
         testacc, attackacc = exp_test(args, model, testloader)
@@ -68,14 +69,15 @@ def run_experiment(args, model, trainloader, testloader):
         log_data['test_acc'].append(testacc)
         log_data['attack_acc'].append(attackacc)
 
-        testacc, attackacc = exp_test(args, Nmod, testloader)
-        print_log(f'Normal Test Accuracy: {testacc * 100:.2f}%, Normal Adversarial Accuracy: {attackacc * 100:.2f}%')
-        log_data['normal_test_acc'].append(testacc)
-        log_data['normal_attack_acc'].append(attackacc)
+        # testacc, attackacc = exp_test(args, Nmod, testloader)
+        # print_log(f'Normal Test Accuracy: {testacc * 100:.2f}%, Normal Adversarial Accuracy: {attackacc * 100:.2f}%')
+        # log_data['normal_test_acc'].append(testacc)
+        # log_data['normal_attack_acc'].append(attackacc)
 
-        transfer_acc = exp_transfer(args, model, Nmod, testloader, args.device)
-        print_log(f'Transfer Attack Accuracy: {transfer_acc * 100:.2f}%')
-        log_data['transfer_test_acc'].append(transfer_acc)
+        # transfer_acc = exp_transfer(args, model, Nmod, testloader, args.device)
+        # print_log(f'Transfer Attack Accuracy: {transfer_acc * 100:.2f}%')
+        # log_data['transfer_test_acc'].append(transfer_acc)
 
     dumpj(log_data, args.checkpoint_dir/'log.json')
+    return [testacc, attackacc]
 

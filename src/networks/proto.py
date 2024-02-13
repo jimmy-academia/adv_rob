@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils import *
+
 
 class ProtoConv2d(nn.Module):
     def __init__(self, args, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
@@ -24,7 +26,9 @@ class ProtoConv2d(nn.Module):
             self.register_parameter('bias', None)
         self.reset_parameters()
 
-        self.cluster_centers = torch.rand(args.num_centers, in_channels*kernel_size**2).to(args.device)
+        # self.patch_size = 14 # 
+        self.patch_size = self.kernel_size**2 * self.in_channels
+        self.cluster_centers = torch.rand(args.num_centers, self.patch_size).to(args.device)
         
 
     def reset_parameters(self):
@@ -41,8 +45,12 @@ class ProtoConv2d(nn.Module):
             # prototypical inference
             this_patch = F.unfold(x, kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
         
-            patch_size = self.kernel_size**2 * self.in_channels
-            flat_patches = this_patch.transpose(1,2).reshape(-1, patch_size)
+            # a = this_patch.view(-1, patch_size)
+            # b = this_patch.transpose(1,2).reshape(-1, patch_size)
+
+            flat_patches = this_patch.view(-1, self.patch_size)
+            # flat_patches = this_patch.transpose(1,2).reshape(-1, patch_size)
+            # flat_patches.reshape_as(this_patch.transpose(1,2)).transpose(1,2) == this_patch
 
             if train:
                 # stream update center with this_patch 
@@ -50,13 +58,18 @@ class ProtoConv2d(nn.Module):
                     # Compute distances from patches to cluster centers
                     distances = torch.cdist(flat_patches, self.cluster_centers)
                     labels = torch.argmin(distances, dim=1)
-
-                # Update cluster centers
-                for i in range(self.args.num_centers):
-                    cluster_patches = flat_patches[labels == i].detach()
-                    if len(cluster_patches) > 0:
-                        self.cluster_centers[i] = (self.cluster_centers[i] * self.patch_counts[i] + cluster_patches.mean(dim=0) * len(cluster_patches)) / (len(cluster_patches) + self.patch_counts[i])
-                        self.patch_counts[i] += len(cluster_patches)
+                    mask = torch.ones_like(distances, dtype=bool)
+                    mask[torch.arange(distances.size(0)).unsqueeze(1), labels.unsqueeze(1)] = False
+                    distances[mask].view(distances.size(0), -1)
+                    weight = distances[mask].view(distances.size(0), -1).mean(1) - distances[torch.arange(distances.size(0)), labels] 
+                    # Update cluster centers
+                    ## contrastive sampling
+                    for i in range(self.args.num_centers):
+                        cluster_patches = flat_patches[labels == i].detach()
+                        weight_i = weight[labels == i].detach()
+                        if len(cluster_patches) > 0:
+                            self.cluster_centers[i] = (self.cluster_centers[i] * self.patch_counts[i] + (cluster_patches * weight_i.unsqueeze(1)).sum(0)) / (self.patch_counts[i] + weight_i.sum())
+                            self.patch_counts[i] += weight_i.sum()
                 
                     # Update count i.e. weight/inertia of current cluster center
                     self.patch_counts[i] = min(self.patch_counts[i], self.args.max_patch_count)
@@ -72,6 +85,7 @@ class ProtoConv2d(nn.Module):
         
             # Reshape back to the original patches' shape but with transformed values
             final_patches = final_patches.view_as(this_patch)
+            # final_patches = final_patches.reshape_as(this_patch.transpose(1,2)).transpose(1,2)
 
             new_size = x.size(3)*self.kernel_size  # calculate!!
             x_refold = F.fold(final_patches, output_size=(new_size, new_size), kernel_size=(self.kernel_size, self.kernel_size), padding=self.padding, stride=self.kernel_size)

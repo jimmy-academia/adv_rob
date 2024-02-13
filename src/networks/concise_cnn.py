@@ -7,20 +7,22 @@ from itertools import cycle
 import torch.nn as nn
 from .proto import ProtoConv2d
 
-def _simpleCNN(args, layers=[16, 'r', 'p', 32, 'r', 'p', 'f', 'l']):
+def _simpleCNN(args, layers=[16, 'r', 'p', 32, 'r', 'p', 'f', 'l'], proto_list=None):
     if args.dataset == 'mnist':
         args.input_size = 28
         args.classes = 10
-    model = ConciseCNN(args, layers)
+    model = ConciseCNN(args, layers, proto_list)
     return model
 
 class ConciseCNN(nn.Module):
-    def __init__(self, args, layers):
+    def __init__(self, args, layers, proto_list):
         super(ConciseCNN, self).__init__()
         self.args = args
         self.channels = 1 if args.dataset in ['mnist'] else 3
 
         self._end_size = args.input_size // (2 ** layers.count('p'))
+        self.proto_iter = None if proto_list is None else iter(proto_list)
+        # iter([False, True])
 
         modules = [self._make_layer(l) for l in layers]
         self.sequential = nn.Sequential(*modules)
@@ -39,10 +41,17 @@ class ConciseCNN(nn.Module):
     def _make_layer(self, l):
         # Define your method to create a layer
         if type(l) is int:
-            if self.args.build_proto:
-                conv_layer = ProtoConv2d(self.args, self.channels, l, 3,1,1)
+            if self.proto_iter is None:
+                if self.args.build_proto:
+                    conv_layer = ProtoConv2d(self.args, self.channels, l, 3,1,1)
+                else:
+                    conv_layer = nn.Conv2d(self.channels, l, 3,1,1)
             else:
-                conv_layer = nn.Conv2d(self.channels, l, 3,1,1)
+                if next(self.proto_iter):
+                    conv_layer = ProtoConv2d(self.args, self.channels, l, 3,1,1)
+                else:
+                    conv_layer = nn.Conv2d(self.channels, l, 3,1,1)
+
 
             self.channels = l
             return conv_layer
