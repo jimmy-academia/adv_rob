@@ -4,7 +4,11 @@ from pathlib import Path
 import argparse
 
 def set_arguments():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description='Tokenizer and Classifier Training with Adversarial Evaluation', 
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--device', type=str, default='0')
     parser.add_argument('--dataset', type=str, default='mnist')
