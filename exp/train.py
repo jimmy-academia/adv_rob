@@ -48,7 +48,7 @@ def train_tokenizer_batch(args, patches, tokenizer, optimizer):
         adv_softmax = torch.softmax(tokenizer(adv_patches), dim=1)
         adv_stab_loss = nn.CrossEntropyLoss()(adv_softmax, pred)
 
-        optimizer.zero_grad()
+        # optimizer.zero_grad()
         adv_stab_loss.backward()
         optimizer.step()
         adv_pred = adv_softmax.argmax(dim=1)
