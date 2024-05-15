@@ -43,6 +43,7 @@ def prepare_tokenembedder(args, tokenembedder, train_loader, test_loader):
             optimizer.zero_grad()
             images = images.to(args.device)
             pred = tokenembedder(images)
+            check()
             adv_images = adv_perturb(images, tokenembedder, pred, args.eps, args.attack_iters)
             adv_pred = tokenembedder(adv_images)
             loss = nn.CrossEntropyLoss()(adv_pred, pred)
