@@ -2,11 +2,14 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
-from utils import check
+from utils import readf, check
 
 from tqdm import tqdm
 
-Rootdir = '/home/jimmyyeh/Documents/CRATER/DATASET'
+# Rootdir = '/home/jimmyyeh/Documents/CRATER/DATASET'
+Rootdir = readf('ckpt/rootdir')
+print(Rootdir)
+check()
 # Import MNIST dataset
 
 def get_dataset(name='mnist'):

@@ -40,6 +40,16 @@ def check():
 
     code.interact(local=dict(globals(), **caller_locals))
 
+
+################################################
+
+# read from file
+def readf(path):
+    with open(path, 'r') as f:
+        return f.read()
+
+# dump/load json file in better format
+
 class NamespaceEncoder(json.JSONEncoder):
   def default(self, obj):
     if isinstance(obj, argparse.Namespace):
@@ -60,6 +70,7 @@ def loadj(filepath):
     with open(filepath) as f:
         return json.load(f)
 
+################################################
 
 def setup_logging(log_path='ckpt/logs', code=0, log_level=logging.INFO):
     """

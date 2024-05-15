@@ -1,6 +1,10 @@
 import torch
 from types import SimpleNamespace
 from pathlib import Path
+import argparse
+
+def set_arguments():
+    pass
 
 def default_args():
     args = SimpleNamespace()
