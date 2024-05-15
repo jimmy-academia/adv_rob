@@ -7,6 +7,7 @@ from collections import defaultdict
 from tqdm import tqdm
 from utils import check
 
+
 def train_tokenizer(args, tokenizer, train_loader, test_loader):
     optimizer = torch.optim.SGD(tokenizer.parameters(), lr=0.01)
     pbar = tqdm(range(args.toktrain_epochs), ncols=70, desc='training', unit='epochs')

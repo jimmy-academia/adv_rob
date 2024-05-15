@@ -9,7 +9,6 @@ from train import train_tokenizer, test_tokenizer, train_classifier, attack_clas
 def main():
     args = set_arguments()
     set_seeds(args.seed)
-    print('gogo mnist')
 
     train_set, test_set = get_dataset(args.dataset)
     train_loader, test_loader = get_dataloader(train_set, test_set, 128)
