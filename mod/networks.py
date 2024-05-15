@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 def get_resnet_model(num_classes=10, pretrained=False):
-    model = models.resnet18(pretrained=pretrained)
+    model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 
