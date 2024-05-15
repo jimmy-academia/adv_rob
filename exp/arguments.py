@@ -8,22 +8,22 @@ def set_arguments():
         description='Tokenizer and Classifier Training with Adversarial Evaluation', 
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    
-    parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--device', type=str, default='0')
-    parser.add_argument('--dataset', type=str, default='mnist')
-    
-    parser.add_argument('--patch_size', type=int, default=8)
-    parser.add_argument('--vocabulary_size', type=int, default=1024)
-    parser.add_argument('--num_hidden_layer', type=int, default=2)
-    parser.add_argument('--embed_size', type=int, default=64)
 
-    parser.add_argument('--toktrain_epochs', type=int, default=1024)
-    parser.add_argument('--tok_batch_iters', type=int, default=1024)
-    parser.add_argument('--train_epochs', type=int, default=128)
-    parser.add_argument('--attack_iters', type=int, default=100)
+    parser.add_argument('--seed', type=int, default=0, help='random seed')
+    parser.add_argument('--device', type=str, default='0', help='gpu device id')
+    parser.add_argument('--dataset', type=str, default='mnist', help='dataset name')
+    
+    parser.add_argument('--patch_size', type=int, default=8, help='patch size to be tokenized')
+    parser.add_argument('--vocabulary_size', type=int, default=1024, help='vocabulary size of token')
+    parser.add_argument('--num_hidden_layer', type=int, default=2, help='number of hidden layers in tokenizer')
+    parser.add_argument('--embed_size', type=int, default=64, help='embedding size of token')
 
-    parser.add_argument('--ckpt_dir', type=str, default='ckpt')
+    parser.add_argument('--toktrain_epochs', type=int, default=1024, help='tokenizer training epochs')
+    parser.add_argument('--tok_batch_iters', type=int, default=1024, help='tokenizer training batch iters')
+    parser.add_argument('--train_epochs', type=int, default=128, help='classifier training epochs')
+    parser.add_argument('--attack_iters', type=int, default=100, help='classifier attack iterations')
+
+    parser.add_argument('--ckpt_dir', type=str, default='ckpt', help='checkpoint root directory')
     args = parser.parse_args()
 
     ## post process args
@@ -35,6 +35,7 @@ def set_arguments():
     args.num_classes = num_class_dict[args.dataset]
     ## paths
     args.ckpt_dir = Path(args.ckpt_dir)
+    args.ckpt_dir.mkdir(parents=True, exist_ok=True)
     args.tokenizer_path = args.ckpt_dir/f'tokenizer_{args.dataset}_{args.patch_size}_{args.vocabulary_size}.pth'
     args.classifier_path = args.ckpt_dir/'classifier.pth'
     return args
