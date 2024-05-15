@@ -27,11 +27,10 @@ def prepare_tokenembedder(args, tokenembedder, train_loader, test_loader):
         optimizer = torch.optim.SGD(tokenembedder.tokenizer.parameters(), lr=0.01)
         print('... done')
         patches = patches.to(args.device)
-        kmeans_ids = torch.from_numpy(kmeans_ids).to(args.device)
+        kmeans_ids = torch.from_numpy(kmeans_ids).to(args.device).long()
         for __ in range(10):
             optimizer.zero_grad()
             output = tokenembedder.tokenizer(patches)
-            check()
             loss = torch.nn.CrossEntropyLoss()(output, kmeans_ids)
             loss.backward()
             optimizer.step()
