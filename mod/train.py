@@ -31,6 +31,7 @@ def prepare_tokenembedder(args, tokenembedder, train_loader, test_loader):
         for __ in range(10):
             optimizer.zero_grad()
             output = tokenembedder.tokenizer(patches)
+            check()
             loss = torch.nn.CrossEntropyLoss()(output, kmeans_ids)
             loss.backward()
             optimizer.step()
