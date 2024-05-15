@@ -19,17 +19,17 @@ def prepare_tokenembedder(args, tokenembedder, train_loader, test_loader):
     if args.precluster_method == 'kmeans':
         images, __ = next(iter(train_loader))
         patches = tokenembedder.split_patch(images)
-        patches = patches.view(-1, args.patch_size**2)
+        patches = patches.view(-1, patches.size(-1))
         from sklearn.cluster import KMeans
+        print('kmeans clustering fitting....')
         kmeans = KMeans(n_clusters=args.vocabulary_size, random_state=args.seed).fit(patches)
         kmeans_ids = kmeans.predict(patches)
         optimizer = torch.optim.SGD(tokenembedder.tokenizer.parameters(), lr=0.01)
-
+        print('... done')
         patches = patches.to(args.device)
         kmeans_ids = torch.from_numpy(kmeans_ids).to(args.device)
         for __ in range(10):
             optimizer.zero_grad()
-            check()
             output = tokenembedder.tokenizer(patches)
             loss = torch.nn.CrossEntropyLoss()(output, kmeans_ids)
             loss.backward()
