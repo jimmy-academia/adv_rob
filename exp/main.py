@@ -1,5 +1,5 @@
 import torch
-from arguments import default_args
+from arguments import set_arguments
 from utils import set_seeds
 from data import get_dataset, get_dataloader, tokenize_dataset
 from networks import Tokenizer, TokClassifier
@@ -7,7 +7,7 @@ from train import train_tokenizer, test_tokenizer, train_classifier, attack_clas
 
 
 def main():
-    args = default_args()
+    args = set_arguments()
     set_seeds(args.seed)
     print('gogo mnist')
 
