@@ -28,13 +28,13 @@ class IPTResnet(nn.Module):
     def __init__(self, args):
         super(IPTResnet, self).__init__()
         self.args = args
-        self.tokenizer = Tokenizer(args.patch_size*args.channels, args.vocab_size, args.num_hidden_layer)
-        self.embedding = nn.Embedding(args.vocab_size, args.patch_size*args.channels)
+        self.tokenizer = Tokenizer(args.patch_size, args.vocab_size, args.num_hidden_layer)
+        self.embedding = nn.Embedding(args.vocab_size, args.patch_size)
         self.classifier = get_resnet_model(num_classes=args.vocab_size, channels=args.channels)
         
     def forward(self, x):
         batch_size = x.size(0)
-        x = x.view(-1, x.size(1)*self.args.patch_size)
+        x = x.view(-1, self.args.patch_size)
         x = self.tokenizer(x)
         x = torch.matmul(x, self.embedding.weight)
         x = x.view(batch_size, -1, self.args.image_size, self.args.image_size)
