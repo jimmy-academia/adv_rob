@@ -29,7 +29,7 @@ def get_dataloader(trainset, testset=None, batch_size=64):
     return trainloader, testloader
 
 def split_patch(images, patch_size):
-    return images.view(images.size(0), -1, images.size(1)*patch_size)
+    return images.view(images.size(0), -1, patch_size)
     
 def tokenize_dataset(_loader, tokenizer, patch_size, device=0):
     tok_set = []

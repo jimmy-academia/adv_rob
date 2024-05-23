@@ -48,7 +48,7 @@ class IPTResnet(nn.Module):
         return x
 
     def inference(self, x):
-        x = x.view(x.size(0), -1, x.size(1)*self.args.patch_size)
+        x = x.view(x.size(0), -1, self.args.patch_size)
         x = self.tokenizer(x)
         x = torch.argmax(x, dim=2) 
         x = self.from_tokens(x)

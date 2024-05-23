@@ -39,7 +39,8 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
             
             if init_kick:
             # if epoch < threshold_epoch:
-                for __ in range(4):
+                for __ in range(10):
+                # for __ in range(4):  ##mnist works
                     optimizer.zero_grad()
                     sim_loss = nn.CrossEntropyLoss()(iptresnet.tokenizer(patches), label)
                     sim_loss.backward()
@@ -87,12 +88,13 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
             if acc > 1: 
                 init_kick = False
 
+
         div = args.toktrain_epochs//20 if args.toktrain_epochs > 20 else 1 
         if (epoch+1) % div == 0 or epoch == args.toktrain_epochs-1:
             correct = total = 0
             for images, __ in tqdm(test_loader, ncols=70, desc='test iptresnet.tokenizer', leave=False):
                 images = images.to(args.device)
-                patches = images.view(-1, images.size(1)*args.patch_size)
+                patches = images.view(-1, args.patch_size)
                 pred = torch.argmax(iptresnet.tokenizer(patches), dim=1)
             
                 adv_patches = adv_perturb(patches, iptresnet.tokenizer, pred, args.eps, args.attack_iters)
