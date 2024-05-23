@@ -6,6 +6,17 @@ from networks import IPTResnet
 from train import advtrain_tokenizer, train_classifier, test_attack
 
 def main():
+
+
+
+    print('''
+        does patch robustness correlate to adversarial robustness?
+        what is the required parameter for good classification?
+        ...
+    ''')
+    input()
+
+    
     args = set_arguments()
     set_seeds(args.seed)
     train_set, test_set = get_dataset(args.dataset)

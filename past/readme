@@ -3,3 +3,12 @@ init = first try
 sys = second try... systematic parameter search, hacking code (works)
 mod = third try... try to modularize network components but failed (backprop cannot work)
 overfit = fourth try ... patch tokenizer overfits, need regularization...
+
+=====
+
+mnist_good
+    
+{
+    obtain 90+ in mnist
+    
+}
