@@ -1,131 +1,158 @@
 import torch
 import torch.nn as nn
-
-from data import split_patch
-
-from collections import defaultdict
 from tqdm import tqdm
+
+from attack import adv_perturb
 from utils import check
 
+def advtrain_tokenizer(args, tokenizer, train_loader, test_loader):
+    optimizer = torch.optim.Adam(tokenizer.parameters(), lr=0.001)
+    pbar = tqdm(range(args.toktrain_epochs), ncols=90, desc='advtr. tokr.')
+    anchors = torch.randn(args.vocab_size, args.patch_size* args.channels).to(args.device)
 
-def train_tokenizer(args, tokenizer, train_loader, test_loader):
-    optimizer = torch.optim.SGD(tokenizer.parameters(), lr=0.01)
-    pbar = tqdm(range(args.toktrain_epochs), ncols=70, desc='training', unit='epochs')
+    threshold_epoch = 1
     for epoch in pbar:
-        for images, __ in tqdm(train_loader, ncols=90, desc='train', unit='batch', leave=False):
+        for images, __ in tqdm(train_loader, ncols=70, desc='load image...token', leave=False):
             images = images.to(args.device)
-            patches = split_patch(images, args.patch_size)
-            adv_pred, pred = train_tokenizer_batch(args, patches, tokenizer, optimizer)
-            pbar.set_postfix(r=f'{(adv_pred == pred).sum()/len(pred):.2f}/{pred.numel()//len(pred)}')
+            patches = images.view(-1, images.size(1)*args.patch_size)
+    
+            # use l_infty distance to anchor as ground truth label
+            # label = torch.argmax(torch.mm(patches, anchor.t()), dim=1)
+            ## iterate over vocab_size
 
-        if (epoch+1) % (args.toktrain_epochs//100) == 0:
-            correct, total = test_tokenizer(args, tokenizer, test_loader)
-            print(f'test accuracy: {correct/total:.2f}')
+            min_dist = None
+            for i, anchor in enumerate(anchors):
+                # l_infty_dist = torch.amax(torch.abs(patches - anchor), dim=1)
+                _dist = torch.linalg.norm(patches - anchor, dim=1)
+                if min_dist is None:
+                    min_dist = _dist
+                    label = torch.tensor([i]*len(patches), device=args.device, dtype=torch.long)
+                else:
+                    mask = _dist < min_dist
+                    min_dist[mask] = _dist[mask]
+                    label[mask] = i
+            sim_loss = nn.CrossEntropyLoss()(tokenizer(patches), label)
             
-    # Save the tokenizer
-    tokenizer.to('cpu')
-    torch.save(tokenizer.state_dict(), args.tokenizer_path)
+            if epoch < threshold_epoch:
+                for __ in range(10):
+                    optimizer.zero_grad()
+                    sim_loss = nn.CrossEntropyLoss()(tokenizer(patches), label)
+                    sim_loss.backward()
+                    optimizer.step()
 
-def test_tokenizer(args, tokenizer, test_loader):
-    counter = defaultdict(lambda:0)
-    counter['test_count'] = 0
-    counter['test_correct'] = 0
-    for images, __ in tqdm(test_loader, ncols=90, desc='test', unit='batch', leave=False):
-        images = images.to(args.device)
-        patches = split_patch(images, args.patch_size)
-        adv_pred, pred = test_tokenizer_batch(args, patches, tokenizer)
-        counter['test_correct'] += (adv_pred == pred).sum()
-        counter['test_count'] += pred.numel()
-    return counter['test_correct'], counter['test_count']
+            acc = float((torch.argmax(tokenizer(patches), dim=1) == label).float().mean()*100)
 
-def train_tokenizer_batch(args, patches, tokenizer, optimizer):
-    for iter in range(args.tok_batch_iters):
-        pred = torch.softmax(tokenizer(patches), dim=1).argmax(dim=1)
-        # Adversarial attack
-        adv_patches = patches.clone().detach()
-        attack_iters = max(10, int(args.attack_iters * (iter/args.tok_batch_iters)))
-        adv_patches = adv_perturb(adv_patches, tokenizer, pred, eps = args.eps, num_iters = attack_iters)
-        adv_softmax = torch.softmax(tokenizer(adv_patches), dim=1)
-        adv_stab_loss = nn.CrossEntropyLoss()(adv_softmax, pred)
+            # use original prediction as ground truth label
+            pred = torch.argmax(tokenizer(patches), dim=1)
+            adv_patches = adv_perturb(patches, tokenizer, pred, args.eps, args.attack_iters)
+            adv_prob = tokenizer(adv_patches)
 
-        # optimizer.zero_grad()
-        adv_stab_loss.backward()
-        optimizer.step()
-        adv_pred = adv_softmax.argmax(dim=1)
-        return adv_pred, pred
+            adv_loss = nn.CrossEntropyLoss()(adv_prob, pred)
 
-def test_tokenizer_batch(args, patches, tokenizer):
-    pred = torch.softmax(tokenizer(patches), dim=1).argmax(dim=1)
-    adv_patches = patches.clone().detach()
-    adv_patches = adv_perturb(adv_patches, tokenizer, pred, eps = args.eps, num_iters=args.attack_iters)
-    adv_pred = torch.softmax(tokenizer(adv_patches), dim=1).argmax(dim=1)
-    return adv_pred, pred
+            if epoch < threshold_epoch:
+                optimizer.zero_grad()
+                adv_loss.backward()
+                optimizer.step()
 
-def adv_perturb(pixels, tokenizer, pred, eps, num_iters, inf=False):
-    pixels_clone = pixels.clone().detach()
-    for __ in range(num_iters):
-        perturbed = pixels_clone.clone().detach().requires_grad_(True)
-        if not inf:
-            output = tokenizer(perturbed)
-        else:
-            output = tokenizer.inference_image(perturbed)
-        torch.softmax(output, dim=1)
-        loss = nn.CrossEntropyLoss()(output, pred)
-        loss.backward()
-        grad = perturbed.grad.data
-        perturbed = perturbed + eps * torch.sign(grad)
-        perturbed = perturbed.clamp(pixels - eps, pixels + eps)
-        perturbed = perturbed.clamp(0, 1) # for images
-        pixels_clone = perturbed.detach()
-    return pixels_clone
+            adv_pred = torch.argmax(adv_prob, dim=1)
+            adv_acc = int((adv_pred == pred).sum()/pred.numel()*100)
 
-def train_classifier(args, classifer, tok_train_loader, tok_test_loader, test_loader):
-    optimizer = torch.optim.Adam(classifer.parameters(), lr=0.01)
-    train_pbar = tqdm(range(args.train_epochs), ncols=90, desc='training', unit='epochs')
+            if epoch >= threshold_epoch:
+                loss = (100 - acc)/10 * sim_loss + (100 - adv_acc)/10 * adv_loss
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # if epoch < 4 :
+            #     for __ in range(10):
+            #         optimizer.zero_grad()
+            #         sim_loss.backward()
+            #         optimizer.step()
+            # # use original prediction as ground truth label
+            # pred = torch.argmax(tokenizer(patches), dim=1)
+            # adv_patches = adv_perturb(patches, tokenizer, pred, args.eps, args.attack_iters)
+            # adv_prob = tokenizer(adv_patches)
+            # adv_pred = torch.argmax(adv_prob, dim=1)
+            # adv_acc = int((adv_pred == pred).sum()/pred.numel()*100)
+
+            # adv_loss = nn.CrossEntropyLoss()(adv_prob, pred)
+
+            # if epoch < 4 :
+            #     optimizer.zero_grad()
+            #     adv_loss.backward()
+            #     optimizer.step()
+            # else:
+            #     loss = (100 - acc)/10 * sim_loss + (100 - adv_acc)/10 * adv_loss
+            #     optimizer.zero_grad()
+            #     loss.backward()
+            #     optimizer.step()
+
+            # update anchor center of each cluster
+            new_anchor_sum = torch.zeros_like(anchors)
+            count = torch.zeros(args.vocab_size, device=args.device, dtype=torch.long)  # Shape: (vocab_size,)
+            new_anchor_sum = new_anchor_sum.scatter_add(0, label.unsqueeze(1).expand(-1, patches.size(1)), patches)
+            count = count.scatter_add(0, label, torch.ones_like(label, dtype=torch.long))
+            nonzero_counts = count > 0
+            delta = args.delta * new_anchor_sum[nonzero_counts] / count[nonzero_counts].unsqueeze(1)
+            anchors[nonzero_counts] = (anchors[nonzero_counts] + delta)/(1+ args.delta)
+            delta_sum = float(delta.abs().sum())
+            # {(adv_pred == pred).sum()}/{pred.numel()}=
+            
+            accuracy_message = f'sim:{acc:.1f}% adv:{adv_acc}% d:{delta_sum:.2f}, l:{float(sim_loss):.1f},{float(adv_loss):.1f}'
+            pbar.set_postfix(r=accuracy_message)
+
+        div = args.toktrain_epochs//20 if args.toktrain_epochs > 20 else 1 
+        if (epoch+1) % div == 0 or epoch == args.toktrain_epochs-1:
+            correct = total = 0
+            for images, __ in tqdm(test_loader, ncols=70, desc='test tokenizer', leave=False):
+                images = images.to(args.device)
+                patches = images.view(-1, images.size(1)*args.patch_size)
+                pred = torch.argmax(tokenizer(patches), dim=1)
+            
+                adv_patches = adv_perturb(patches, tokenizer, pred, args.eps, args.attack_iters)
+                adv_pred = torch.argmax(tokenizer(adv_patches), dim=1)
+
+                correct += (adv_pred == pred).sum()
+                total += pred.numel()
+            print(f'epoch: {epoch}| attacked tokenizer accuracy: {correct/total:.4f}')
+
+def train_classifier(args, iptresnet, tok_train_loader, test_loader):
+    optimizer = torch.optim.Adam(iptresnet.parameters(), lr=0.001)
+    train_pbar = tqdm(range(args.train_epochs), ncols=90, desc='train classifier')
     for epoch in train_pbar:
+        cor = tot = 0
         for tokens, labels in tok_train_loader:
             tokens = tokens.to(args.device)
             labels = labels.to(args.device)
             optimizer.zero_grad()
-            output = classifer(tokens)
+            output = iptresnet.from_tokens(tokens)
             loss = torch.nn.CrossEntropyLoss()(output, labels)
             loss.backward()
             optimizer.step()
-        with torch.no_grad():
-            trainacc = 0
-            count = 0
-            for tokens, labels in tok_train_loader:
-                tokens, labels = tokens.to(args.device), labels.to(args.device)
-                output = classifer(tokens)
-                trainacc += sum(output.argmax(dim=1).eq(labels).float())
-                count += len(labels)
-            trainacc = trainacc / count
-
-            testacc = 0
-            count = 0
-            for tokens, labels in tok_test_loader:
-                tokens, labels = tokens.to(args.device), labels.to(args.device)
-                output = classifer(tokens)
-                testacc += sum(output.argmax(dim=1).eq(labels).float())
-                count += len(labels)
-            testacc = testacc / count
-            # print()
-            # print(f'epoch {epoch}: train acc {trainacc}, test acc {testacc}')
-            train_pbar.set_postfix(r=f'train: {trainacc:.2f}/test: {testacc:.2f}')
-        if (epoch+1) % (args.train_epochs//20) == 0:
-            attack_classifer(args, classifer, test_loader)
-        torch.save(classifer.state_dict(), args.classifier_path)
+            cor += (output.argmax(dim=1) == labels).sum()
+            tot += len(labels)
+            accuracy = float(cor/tot)
+            train_pbar.set_postfix(l=f'{float(loss):.2f}', acc=f'{accuracy:.3f}')
+        div = args.train_epochs//20 if args.train_epochs > 20 else 1 
+        if (epoch+1) % div == 0 or epoch == args.train_epochs-1:
+            correct, adv_correct, total = test_attack(args, iptresnet, test_loader)
+            print(f'train acc: {accuracy:.2f} test accuracy: {correct/total:.4f}, adv accuracy: {adv_correct/total:.4f}')
 
 
-def attack_classifer(args, classifer, test_loader):
-    attackcount = 0
-    count = 0
-    for images, labels in tqdm(test_loader, ncols=90, desc='attacking', unit='images', leave=False):
-        images, labels = images.to(args.device), labels.to(args.device)
-        adv_images = adv_perturb(images, classifer, labels, eps = args.eps, num_iters = args.attack_iters, inf=True)
-        output = classifer.inference_image(adv_images)
-        attackcount += sum(output.argmax(dim=1).eq(labels).float())
-        count += len(labels)
 
-    attackacc = attackcount / count
-    print('Attack accuracy:', attackacc.item())
+def test_attack(args, iptresnet, test_loader):
+    total = correct = adv_correct = 0
+    for images, labels in tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
+        images = images.to(args.device)
+        labels = labels.to(args.device)
+        pred = iptresnet.inference(images)
+        correct += (pred.argmax(dim=1) == labels).sum()
+
+        adv_images = adv_perturb(images, iptresnet, labels, args.eps, args.attack_iters)
+
+        adv_pred = iptresnet.inference(adv_images)
+        adv_correct += (adv_pred.argmax(dim=1) == labels).sum()
+        total += len(labels)
+    return correct, adv_correct, total
+
+
