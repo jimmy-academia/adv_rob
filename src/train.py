@@ -134,7 +134,7 @@ def train_classifier(args, iptresnet, tok_train_loader, test_loader):
         div = args.train_epochs//20 if args.train_epochs > 20 else 1 
         if (epoch+1) % div == 0 or epoch == args.train_epochs-1:
             correct, adv_correct, total = test_attack(args, iptresnet, test_loader)
-            print(f'train acc: {accuracy:.2f} test accuracy: {correct/total:.4f}, adv accuracy: {adv_correct/total:.4f}')
+            print(f'train acc: {accuracy:.2f} test accuracy: {correct/total:.4f}, adv accuracy: {adv_correct/total:.4f}...')
 
 
 
