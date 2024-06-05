@@ -88,6 +88,9 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
             if acc > 1: 
                 init_kick = False
 
+        iptresnet.embedding.weight = nn.Parameter(anchors)
+        for param in iptresnet.embedding.parameters():
+            param.requires_grad = False
 
         div = args.toktrain_epochs//20 if args.toktrain_epochs > 20 else 1 
         if (epoch+1) % div == 0 or epoch == args.toktrain_epochs-1:

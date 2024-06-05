@@ -12,15 +12,15 @@ def set_arguments():
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--device', type=str, default='0', help='gpu device id')
     # dataset
-    parser.add_argument('--dataset', type=str, default='mnist', help='dataset name')
+    parser.add_argument('--dataset', type=str, default='cifar10', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=512, help='dataset batch size')
     # tokenizer
     parser.add_argument('--patch_size', type=int, default=8, help='patch size to be tokenized')
-    parser.add_argument('--vocab_size', type=int, default=2048, help='vocabulary size of token')
+    parser.add_argument('--vocab_size', type=int, default=4096, help='vocabulary size of token')
     parser.add_argument('--num_hidden_layer', type=int, default=2, help='number of hidden layers in tokenizer')
     # training and attack
     parser.add_argument('--precluster_method', type=str, default='None', choices=['None', 'kmeans'], help='clustering method for token embedding')
-    parser.add_argument('--toktrain_epochs', type=int, default=50, help='tokenizer epochs')
+    parser.add_argument('--toktrain_epochs', type=int, default=2, help='tokenizer epochs')
     parser.add_argument('--train_epochs', type=int, default=12, help='classifier training epochs')
     parser.add_argument('--attack_iters', type=int, default=100, help='classifier attack iterations')
     # ckpt
