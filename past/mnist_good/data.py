@@ -6,7 +6,7 @@ from utils import readf, check
 
 from tqdm import tqdm
 
-Rootdir = readf('../cache/rootdir')
+Rootdir = readf('../../cache/rootdir')
 # Import MNIST dataset
 
 def get_dataset(name='mnist'):
