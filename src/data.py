@@ -9,7 +9,7 @@ from tqdm import tqdm
 Rootdir = readf('../cache/rootdir')
 # Import MNIST dataset
 
-def get_dataset(name='mnist'):
+def get_dataset(name='cifar10'):
     if name == 'mnist':
         mnist_transf = transforms.Compose([transforms.Resize(32), transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
         trainset = torchvision.datasets.MNIST(root=Rootdir, train=True, download=True, transform=mnist_transf)
@@ -45,3 +45,17 @@ def tokenize_dataset(_loader, tokenizer, patch_size, device=0):
         
         tok_set.extend([(tok_images[i], labels[i].item()) for i in range(tok_images.size(0))])
     return tok_set
+
+
+def patchwise_loader(_loader, patch_size, batch_size=12800):
+    all_patches = []
+    for images, labels in tqdm(_loader, ncols=90, desc='patch_splitting', unit='images', leave=False):
+        images = images.view(-1, patch_size)
+        all_patches.append(images)
+
+    patch_dataset = torch.utils.data.TensorDataset(torch.cat(all_patches))
+    patch_loader = get_dataloader(patch_dataset, batch_size=batch_size)
+
+    return patch_loader
+
+
