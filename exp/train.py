@@ -137,7 +137,7 @@ def train_classifier(args, iptresnet, tok_train_loader, test_loader):
             print(f'train acc: {accuracy:.2f} test acc: {correct/total:.4f}, adv acc: {adv_correct/total:.4f}, ps acc {psadv_correct/total:.4f}...')
 
 def test_attack(args, iptresnet, test_loader):
-    total = correct = adv_correct = 0
+    total = correct = adv_correct = psadv_correct = 0
     for images, labels in tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
         if random.random()>0.2:
             continue
