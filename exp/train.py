@@ -1,10 +1,9 @@
+import random 
 import torch
 import torch.nn as nn
 from tqdm import tqdm
 
 from attack import adv_perturb
-from utils import check
-
 from data import get_dataloader, tokenize_dataset
 
 def incremental_testing(args, iptresnet, train_loader, test_loader):
@@ -134,12 +133,14 @@ def train_classifier(args, iptresnet, tok_train_loader, test_loader):
             train_pbar.set_postfix(l=f'{float(loss):.2f}', acc=f'{accuracy:.3f}')
         div = args.train_epochs//20 if args.train_epochs > 20 else 1 
         if (epoch+1) % div == 0 or epoch == args.train_epochs-1:
-            correct, adv_correct, total = test_attack(args, iptresnet, test_loader)
-            print(f'train acc: {accuracy:.2f} test accuracy: {correct/total:.4f}, adv accuracy: {adv_correct/total:.4f}...')
+            correct, adv_correct, psadv_correct, total = test_attack(args, iptresnet, test_loader)
+            print(f'train acc: {accuracy:.2f} test acc: {correct/total:.4f}, adv acc: {adv_correct/total:.4f}, ps acc {psadv_correct/total:.4f}...')
 
 def test_attack(args, iptresnet, test_loader):
     total = correct = adv_correct = 0
     for images, labels in tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
+        if random.random()>0.2:
+            continue
         images = images.to(args.device)
         labels = labels.to(args.device)
         pred = iptresnet.inference(images)
@@ -148,8 +149,10 @@ def test_attack(args, iptresnet, test_loader):
         adv_images = adv_perturb(images, iptresnet, labels, args.eps, args.attack_iters)
 
         adv_pred = iptresnet.inference(adv_images)
+        psadv_pred = iptresnet(adv_images)
         adv_correct += (adv_pred.argmax(dim=1) == labels).sum()
+        psadv_correct += (psadv_pred.argmax(dim=1) == labels).sum()
         total += len(labels)
-    return correct, adv_correct, total
+    return correct, adv_correct, psadv_correct, total
 
 

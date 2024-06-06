@@ -5,6 +5,7 @@ from data import get_dataset, get_dataloader, tokenize_dataset
 from networks import IPTResnet
 from train import incremental_testing
 
+import random
 def main():
 
 

@@ -20,8 +20,8 @@ def set_arguments():
     parser.add_argument('--num_hidden_layer', type=int, default=2, help='number of hidden layers in tokenizer')
     # training and attack
     parser.add_argument('--precluster_method', type=str, default='None', choices=['None', 'kmeans'], help='clustering method for token embedding')
-    parser.add_argument('--toktrain_epochs', type=int, default=2, help='tokenizer epochs')
-    parser.add_argument('--train_epochs', type=int, default=12, help='classifier training epochs')
+    parser.add_argument('--toktrain_epochs', type=int, default=50, help='tokenizer epochs')
+    parser.add_argument('--train_epochs', type=int, default=5, help='classifier training epochs')
     parser.add_argument('--attack_iters', type=int, default=100, help='classifier attack iterations')
     # ckpt
     parser.add_argument('--ckpt_dir', type=str, default='ckpt', help='checkpoint root directory')
