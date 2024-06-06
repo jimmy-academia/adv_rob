@@ -10,7 +10,7 @@ from data import get_dataloader, tokenize_dataset
 def incremental_testing(args, iptresnet, train_loader, test_loader):
     optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=0.001)
     pbar = tqdm(range(args.toktrain_epochs), ncols=90, desc='advtr. tokr.')
-    anchors = torch.randn(args.vocab_size, args.patch_size).to(args.device)
+    anchors = torch.randn(args.vocab_size, args.patch_numel).to(args.device)
 
     threshold_epoch = 1
     init_kick = True
@@ -18,7 +18,8 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
     for epoch in pbar:
         for images, __ in tqdm(train_loader, ncols=70, desc='load image...token', leave=False):
             images = images.to(args.device)
-            patches = images.view(-1, args.patch_size)
+            patches = iptresnet.patcher(images, True)
+            # patches = images.view(-1, args.patch_numel)
     
             # use l_infty distance to anchor as ground truth label
             # label = torch.argmax(torch.mm(patches, anchor.t()), dim=1)
@@ -97,7 +98,8 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
             correct = total = 0
             for images, __ in tqdm(test_loader, ncols=70, desc='test iptresnet.tokenizer', leave=False):
                 images = images.to(args.device)
-                patches = images.view(-1, args.patch_size)
+                patches = iptresnet.patcher(images, True)
+                # patches = images.view(-1, args.patch_size)
                 pred = torch.argmax(iptresnet.tokenizer(patches), dim=1)
             
                 adv_patches = adv_perturb(patches, iptresnet.tokenizer, pred, args.eps, args.attack_iters)
@@ -107,8 +109,7 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
                 total += pred.numel()
             print(f'epoch: {epoch}| attacked iptresnet.tokenizer accuracy: {correct/total:.4f}')
 
-
-            tok_train_set = tokenize_dataset(train_loader, iptresnet.tokenizer, args.patch_size, args.device)
+            tok_train_set = tokenize_dataset(train_loader, iptresnet, args.device)
             tok_train_loader = get_dataloader(tok_train_set, batch_size=args.batch_size)
 
             train_classifier(args, iptresnet, tok_train_loader, test_loader)
@@ -135,8 +136,6 @@ def train_classifier(args, iptresnet, tok_train_loader, test_loader):
         if (epoch+1) % div == 0 or epoch == args.train_epochs-1:
             correct, adv_correct, total = test_attack(args, iptresnet, test_loader)
             print(f'train acc: {accuracy:.2f} test accuracy: {correct/total:.4f}, adv accuracy: {adv_correct/total:.4f}...')
-
-
 
 def test_attack(args, iptresnet, test_loader):
     total = correct = adv_correct = 0

@@ -37,12 +37,14 @@ class PatchMaker(nn.Module):
         self.inv_patcher.weight.data = identity_filter
         self.inv_patcher.bias.data.zero_()
 
-    def forward(self, x):
+    def forward(self, x, flat=False):
         x = self.patcher(x)  # Outputs: [batch_size, 12, 3, 3]
         batch_size, patch_numel, __, __ = x.shape
         x = x.permute(0, 2, 3, 1)  # Put channel as the last dimension
-        x = x.contiguous().view(batch_size, -1, patch_numel)  # Flatten grid to sequence
-        return x
+        if flat:
+            return x.contiguous().view(-1, patch_numel)
+        else:
+            return x.contiguous().view(batch_size, -1, patch_numel)  
 
     def inverse(self, x):
         batch_size, num_patches, patch_numel = x.shape

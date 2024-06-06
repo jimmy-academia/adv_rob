@@ -28,19 +28,16 @@ def get_dataloader(trainset, testset=None, batch_size=64):
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
     return trainloader, testloader
 
-def split_patch(images, patch_size):
-    return images.view(images.size(0), -1, patch_size)
+# def split_patch(images, patch_size):
+    # return images.view(images.size(0), -1, patch_size)
     
-def tokenize_dataset(_loader, tokenizer, patch_size, device=0):
+def tokenize_dataset(_loader, iptmodel, device=0):
     tok_set = []
     for images, labels in tqdm(_loader, ncols=90, desc='tokenizing', unit='images', leave=False):
         images = images.to(device)
-
-        patches = split_patch(images, patch_size)
-        token_probability = tokenizer(patches)
+        patches = iptmodel.patcher(images)
+        token_probability = iptmodel.tokenizer(patches)
         tok_images = torch.argmax(token_probability, dim=2)  # Assign the largest element in tok_image to tok_image
-        # width = images.shape[-1]//patch_size # Assume square images
-        # tok_images = tok_images.view(images.size(0), width, width)
         tok_images = tok_images.to('cpu')
         
         tok_set.extend([(tok_images[i], labels[i].item()) for i in range(tok_images.size(0))])

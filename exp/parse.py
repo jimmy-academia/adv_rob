@@ -17,7 +17,7 @@ def set_arguments():
     # tokenizer
     parser.add_argument('--patch_size', type=int, default=2, help='patch size to be tokenized')
     parser.add_argument('--vocab_size', type=int, default=4096, help='vocabulary size of token')
-    parser.add_argument('--num_hidden_layer', type=int, default=3, help='number of hidden layers in tokenizer')
+    parser.add_argument('--num_hidden_layer', type=int, default=2, help='number of hidden layers in tokenizer')
     # training and attack
     parser.add_argument('--precluster_method', type=str, default='None', choices=['None', 'kmeans'], help='clustering method for token embedding')
     parser.add_argument('--toktrain_epochs', type=int, default=2, help='tokenizer epochs')
@@ -32,7 +32,7 @@ def set_arguments():
     ## dataset defined
     args.channels = 1 if args.dataset == 'mnist' else 3
     args.image_size = 224 if args.dataset == 'imagenet' else 32
-    args.embed_size = args.patch_size**2
+    args.patch_numel = args.channels * args.patch_size**2
     args.eps = 0.3 if args.dataset == 'mnist' else 0.03
     args.delta = 0.1
     num_class_dict = {'mnist': 10, 'cifar10': 10, 'cifar100':100, 'imagenet': 1000}
