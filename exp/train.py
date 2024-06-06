@@ -92,7 +92,8 @@ def incremental_testing(args, iptresnet, train_loader, test_loader):
         for param in iptresnet.embedding.parameters():
             param.requires_grad = False
 
-        div = args.toktrain_epochs//20 if args.toktrain_epochs > 20 else 1 
+        # div = args.toktrain_epochs//20 if args.toktrain_epochs > 20 else 1 
+        div =  1 
         if (epoch+1) % div == 0 or epoch == args.toktrain_epochs-1:
             correct = total = 0
             for images, __ in tqdm(test_loader, ncols=70, desc='test iptresnet.tokenizer', leave=False):
@@ -139,8 +140,6 @@ def train_classifier(args, iptresnet, tok_train_loader, test_loader):
 def test_attack(args, iptresnet, test_loader):
     total = correct = adv_correct = psadv_correct = 0
     for images, labels in tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
-        if random.random()>0.2:
-            continue
         images = images.to(args.device)
         labels = labels.to(args.device)
         pred = iptresnet.inference(images)
