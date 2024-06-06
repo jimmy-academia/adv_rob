@@ -4,6 +4,8 @@ import torchvision.models as models
 
 import math
 
+from utils import check
+
 class PatchMaker(nn.Module):
     def __init__(self, in_channels, patch_size):
         super(PatchMaker, self).__init__()
@@ -57,94 +59,61 @@ def get_resnet_model(num_classes=10, channels=3):
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 
-# class Tokenizer(nn.Module):
-#     def __init__(self, in_size, out_size, num_hidden_layer):
-#         super().__init__()
-#         hidden_dim = [8, 32, 128]
-#         _layers = []
-#         for i in range(num_hidden_layer):
-#             _layers.append(nn.Linear(in_size, hidden_dim[i]))
-#             _layers.append(nn.ReLU())
-#             in_size = hidden_dim[i]
-#         _layers.append(nn.Linear(in_size, out_size))
+class Tokenizer(nn.Module):
+    def __init__(self, in_size, out_size, num_hidden_layer):
+        super().__init__()
+        hidden_dim = [64, 128]
+        _layers = []
+        for i in range(num_hidden_layer):
+            _layers.append(nn.Linear(in_size, hidden_dim[i]))
+            _layers.append(nn.ReLU())
+            in_size = hidden_dim[i]
+        _layers.append(nn.Linear(in_size, out_size))
 
-#         self.main_module = nn.Sequential(*_layers)
+        self.main_module = nn.Sequential(*_layers)
 
-#     def forward(self, x):
-#         return self.main_module(x)
-
-
-
-#     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
-#         n, c, h, w = x.shape
-#         p = self.patch_size
-#         n_h = h // p
-#         n_w = w // p
-
-#         hidden_dim = channel * patch_size * patch_size
-#         nn.Conv2d(in_channels=3, out_channels=hidden_dim, kernel_size=patch_size, stride=patch_size)
-#                 self._initialize_weights()
-
-#     def _initialize_weights(self):
-#         # Set the weights for an identity operation
-#         c, n, h, w = self.conv.weight.shape  # (12, 3, 2, 2)
-#         identity_filter = torch.zeros_like(self.conv.weight)
-#         for i in range(c):
-#             channel = i // (h * w)
-#             row = (i % (h * w)) // w
-#             col = (i % (h * w)) % w
-#             identity_filter[i, channel, row, col] = 1
-
-#         # Set the manually calculated weights and zero biases
-#         self.conv.weight.data = identity_filter
-#         self.conv.bias.data.zero_()
+    def forward(self, x):
+        return self.main_module(x)
 
 
-
-
-#         # (n, c, h, w) -> (n, hidden_dim, n_h, n_w)
-#         x = self.conv_proj(x)
-#         # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
-#         x = x.reshape(n, self.hidden_dim, n_h * n_w)
-
-#         # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
-#         # The self attention layer expects inputs in the format (N, S, E)
-#         # where S is the source sequence length, N is the batch size, E is the
-#         # embedding dimension
-#         x = x.permute(0, 2, 1)
-
-#         return x
-
-
-# class IPTResnet(nn.Module):
-#     def __init__(self, args):
-#         super(IPTResnet, self).__init__()
-#         self.args = args
-#         self.tokenizer = Tokenizer(args.patch_size, args.vocab_size, args.num_hidden_layer)
-#         self.embedding = nn.Embedding(args.vocab_size, args.patch_size)
-#         self.classifier = get_resnet_model(num_classes=args.vocab_size, channels=args.channels)
+class IPTResnet(nn.Module):
+    def __init__(self, args):
+        super(IPTResnet, self).__init__()
+        self.args = args
+        self.patcher = PatchMaker(args.channels, args.patch_size)
+        self.patch_numel = args.channels * args.patch_size * args.patch_size
+        self.tokenizer = Tokenizer(self.patch_numel, args.vocab_size, args.num_hidden_layer)
+        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)
+        self.classifier = get_resnet_model(num_classes=args.num_classes, channels=args.channels)
         
-#     def forward(self, x):
-#         batch_size = x.size(0)
-#         x = x.view(-1, self.args.patch_size)
-#         x = self.tokenizer(x)
-#         x = torch.matmul(x, self.embedding.weight)
-#         x = x.view(batch_size, -1, self.args.image_size, self.args.image_size)
-#         x = self.classifier(x)
-#         return x
+    def forward(self, x):
+        x = self.patcher(x)
+        batch_size = x.size(0)
+        x = x.view(-1, self.patch_numel)
+        x = self.tokenizer(x)
+        x = torch.matmul(x, self.embedding.weight)
+        x = x.view(batch_size, -1, self.patch_numel)
+        x = self.patcher.inverse(x)
+        # x = x.view(batch_size, -1, self.args.image_size, self.args.image_size)
+        x = self.classifier(x)
+        return x
         
-#     def from_tokens(self, x):
-#         x = self.embedding(x)
-#         x = x.view(x.size(0), -1, self.args.image_size, self.args.image_size)
-#         x = self.classifier(x)
-#         return x
+    def from_tokens(self, x):
+        x = self.embedding(x)
+        x = x.view(x.size(0), -1, self.patch_numel)
+        x = self.patcher.inverse(x)
+        # x = x.view(x.size(0), -1, self.args.image_size, self.args.image_size)
+        x = self.classifier(x)
+        return x
 
-#     def inference(self, x):
-#         x = x.view(x.size(0), -1, self.args.patch_size)
-#         x = self.tokenizer(x)
-#         x = torch.argmax(x, dim=2) 
-#         x = self.from_tokens(x)
-#         return x
+    def inference(self, x):
+        # x = x.view(x.size(0), -1, self.args.patch_size)
+        x = self.patcher(x)
+        x = self.tokenizer(x)
+        x = torch.argmax(x, dim=2) 
+        x = self.from_tokens(x)
+
+        return x
 
 if __name__ == '__main__':
 
@@ -157,24 +126,43 @@ if __name__ == '__main__':
     print(all((a==c).flatten()))
     c.sum().backward()
     print(all((a.grad == 1).flatten()))
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--patch_size', type=int, default=8)
+    parser.add_argument('--vocab_size', type=int, default=1024)
+    parser.add_argument('--num_hidden_layer', type=int, default=2)
+    parser.add_argument('--channels', type=int, default=1)
+    parser.add_argument('--image_size', type=int, default=32)
+    parser.add_argument('--num_classes', type=int, default=10)
+    args = parser.parse_args()
     
-    # import argparse
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--patch_size', type=int, default=8)
-    # parser.add_argument('--vocab_size', type=int, default=1024)
-    # parser.add_argument('--num_hidden_layer', type=int, default=2)
-    # parser.add_argument('--channels', type=int, default=1)
-    # parser.add_argument('--image_size', type=int, default=32)
-    # args = parser.parse_args()
-    
-    # model = IPTResnet(args)
-    # model.to(0)
+    model = IPTResnet(args)
+    model.to(0)
     # model.tokenizer.load_state_dict(torch.load('ckpt/tokenizer_mnist_8_1024.pth'))
-    # x = torch.randn(1024, 1, 32, 32)
-    # x = x.to(0)
-    # x.requires_grad = True
-    # out = model(x)
-    # print(out)
-    # loss = out.sum()
-    # loss.backward()
-    # print('pass')        
+
+    image = torch.randn(1024, 1, 32, 32)
+    image = image.to(0)
+    image.requires_grad = True
+    out = model(image)
+    label = torch.ones(1024).to(0).long()
+    loss = torch.nn.CrossEntropyLoss()(out, label)
+
+    temp = model.patcher.patcher.weight.clone()
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    print(all((temp == model.patcher.patcher.weight).flatten()))
+
+    image = torch.randn(1024, 1, 32, 32)
+    image = image.to(0)
+    image.requires_grad = True
+    y = model.inference(image)
+    y.sum().backward()
+    print(f'no grad for image: {image.grad}')
+
+
+# 

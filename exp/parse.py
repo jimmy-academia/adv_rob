@@ -15,9 +15,9 @@ def set_arguments():
     parser.add_argument('--dataset', type=str, default='cifar10', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=512, help='dataset batch size')
     # tokenizer
-    parser.add_argument('--patch_size', type=int, default=8, help='patch size to be tokenized')
+    parser.add_argument('--patch_size', type=int, default=2, help='patch size to be tokenized')
     parser.add_argument('--vocab_size', type=int, default=4096, help='vocabulary size of token')
-    parser.add_argument('--num_hidden_layer', type=int, default=2, help='number of hidden layers in tokenizer')
+    parser.add_argument('--num_hidden_layer', type=int, default=3, help='number of hidden layers in tokenizer')
     # training and attack
     parser.add_argument('--precluster_method', type=str, default='None', choices=['None', 'kmeans'], help='clustering method for token embedding')
     parser.add_argument('--toktrain_epochs', type=int, default=2, help='tokenizer epochs')
