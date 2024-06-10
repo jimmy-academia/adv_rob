@@ -93,6 +93,7 @@ class IPTResnet(nn.Module):
         batch_size = x.size(0)
         x = x.view(-1, self.patch_numel)
         x = self.tokenizer(x)
+        x = torch.nn.Softmax()(x*10) ###
         x = torch.matmul(x, self.embedding.weight)
         x = x.view(batch_size, -1, self.patch_numel)
         x = self.patcher.inverse(x)
@@ -112,6 +113,7 @@ class IPTResnet(nn.Module):
         # x = x.view(x.size(0), -1, self.args.patch_size)
         x = self.patcher(x)
         x = self.tokenizer(x)
+        x = torch.nn.Softmax()(x*10) ###
         x = torch.argmax(x, dim=2) 
         x = self.from_tokens(x)
 
