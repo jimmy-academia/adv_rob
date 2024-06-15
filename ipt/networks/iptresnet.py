@@ -19,39 +19,43 @@ class IPTResnet(nn.Module):
         self.classifier = get_resnet_model(num_classes=args.num_classes, channels=args.channels)
         self.softmax = nn.Softmax(-1)
 
-    def refit(self, x, tau=None):
-        x = self.patcher(x)
-        batch_size = x.size(0)
-        x = x.view(-1, self.patch_numel)
-        x = self.tokenizer(x)
-        if tau is not None:
-            x = self.softmax(x*tau)
-        x = torch.matmul(x, self.embedding.weight)
-        x = x.view(batch_size, -1, self.patch_numel)
-        x = self.patcher.inverse(x)
-        return x
-    
-    def tokenize_image(self, x):
-        x = self.patcher(x)  # (batch_size, num_patches, patch_numel)
+    def tokenize_image(self, x, flat=False):
+        x = self.patcher(x, flat)  # (batch_size, num_patches, patch_numel)
         x = self.tokenizer(x) # (batch_size, num_patches, vocab_size)
-        # x = torch.argmax(x, dim=2)  # (batch_size, num_patches)
         return x
     
     def forward(self, x):
-        x = self.refit(x)    
-        x = self.classifier(x)
-        return x
-        
-    def from_tokens(self, x):
+        x = self.tokenize_image(x)
+        x = x.argmax(2)
         x = self.embedding(x)
-        x = x.view(x.size(0), -1, self.patch_numel)
         x = self.patcher.inverse(x)
         x = self.classifier(x)
         return x
+    
+    def visualize_tok_image(self, img):
+        tok_image = self.tokenize_image(img.unsqueeze(0)).argmax(2)
+        tok_image = tok_image.resize(self.args.num_patches_width, self.args.num_patches_width)
+        print(tok_image)
 
-    def inference(self, x):
-        x = self.patcher(x)
-        x = self.tokenizer(x)
-        x = torch.argmax(x, dim=2) 
-        x = self.from_tokens(x)
-        return x
+    
+    # def from_tokens(self, x):
+    #     x = self.embedding(x)
+    #     x = x.view(x.size(0), -1, self.patch_numel)
+    #     x = self.patcher.inverse(x)
+    #     x = self.classifier(x)
+    #     return x
+
+    # def inference(self, x):
+    #     x = self.patcher(x)
+    #     x = self.tokenizer(x)
+    #     x = torch.argmax(x, dim=2) 
+    #     x = self.from_tokens(x)
+    #     return x
+
+    # batch_size = x.size(0)
+    # x = x.view(-1, self.patch_numel)
+    # if tau is not None:
+    #     x = self.softmax(x*tau)
+    # x = torch.matmul(x, self.embedding.weight)
+    # x = x.view(batch_size, -1, self.patch_numel)
+    

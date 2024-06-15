@@ -44,3 +44,4 @@ def tokenize_dataset(_loader, iptmodel, device=0):
         tok_set.extend([(tok_images[i], labels[i].item()) for i in range(tok_images.size(0))])
     return tok_set
 
+

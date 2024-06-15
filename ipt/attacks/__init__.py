@@ -10,7 +10,11 @@ def pgd_attack(args, primary, model, labels):
     for __ in range(args.attack_iters):
         variable = secondary.clone().detach().requires_grad_(True)
         output = model(variable)
-        loss = nn.CrossEntropyLoss()(output, labels)
+        if type(labels) is int:
+            loss = - nn.CrossEntropyLoss()(output, torch.ones(primary.size(0), device=args.device).long() * labels)
+        else:
+            loss = nn.CrossEntropyLoss()(output, labels)
+        
         loss.backward()
         grad = variable.grad.data
         variable = variable + args.eps * torch.sign(grad)
@@ -30,3 +34,4 @@ def square_attack(args, primary, model, labels):
 def patch_square_attack(args, primary, model, labels):
     patch_square_attacker = PatchSquareAttack(model, norm='Linf', eps=args.eps, device=args.device)
     return patch_square_attacker.perturb(primary, labels)
+

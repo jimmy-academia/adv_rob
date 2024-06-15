@@ -32,10 +32,8 @@ class DisjointPatchMaker(nn.Module):
         self.inv_patcher.bias.data.zero_()
 
     def forward(self, x, flat=False):
-        assert len(x.shape) in [3, 4], 'Input shape should be either [batch_size, channels, height, width] or [batch_size, height, width]'
-        if len(x.shape) == 3:
-            x = x.unsqueeze(0)
-        x = self.patcher(x) # Outputs: [batch_size, patch_numel, num_patches_width, num_patches_height]
+        assert len(x.shape) == 4, 'Input shape should [batch_size, channels, height, width]'
+        x = self.patcher(x) # Outputs: [batch_size, patch_numel, num_patches_width, num_patches_width]
         batch_size = x.size(0)
         x = x.permute(0, 2, 3, 1)  # Put patch_numel to the last dimension
         if flat:

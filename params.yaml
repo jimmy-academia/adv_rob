@@ -1,16 +1,16 @@
-name: "train_auto_encode"
+name: "dev"
 description: "original experiment with pgd adversarial training"
 dataset: 'mnist'
-batch_size: 512
-patch_size: 4
-vocab_size: 1024
+batch_size: 128
+patch_size: 2
+vocab_size: 128
 model:
     patcher_type: 'conv_disjoint'
     tokenizer_type: 'mlp'
     tokenizer_hidden_layers: [64, 128]
 train:
     toktrain_epochs: 20
-    train_epochs: 12
+    train_epochs: 1
     delta: 0.1
     lr: 0.001
     tau: 0.5

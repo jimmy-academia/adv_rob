@@ -38,5 +38,10 @@ def config_arguments(config):
     args.num_classes = num_class_dict[args.dataset]
     ## paths
     args.ckpt_dir = Path('ckpt')/config['name'] # mkdir prior to save; not here.
+    # if args.ckpt_dir.exists():
+    #     input(f'{args.ckpt_dir} already exists. Press any key to continue')
+    # else:
+    #     args.ckpt_dir.mkdir(parents=True, exist_ok=True)
+
     return args
 

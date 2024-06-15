@@ -1,7 +1,7 @@
 import torch
 import time
 import math
-# import torch.nn.functional as F
+from utils import check
 
 class PatchSquareAttack():
     
@@ -212,7 +212,7 @@ class PatchSquareAttack():
                     x_curr = self.check_shape(x[idx_to_fool])
                     x_best_curr = self.check_shape(x_best[idx_to_fool])
                     y_curr = y[idx_to_fool]
-                    if len(y_curr.shape) == 0:
+                    if len(y_curr.shape) == 1:
                         y_curr = y_curr.unsqueeze(0)
                     margin_min_curr = margin_min[idx_to_fool]
                     loss_min_curr = loss_min[idx_to_fool]
@@ -231,7 +231,6 @@ class PatchSquareAttack():
                         x_curr + self.eps)
                     x_new = torch.clamp(x_new, 0., 1.)
                     x_new = self.check_shape(x_new)
-                    
                     margin, loss = self.margin_and_loss(x_new, y_curr)
 
                     # update loss if new loss is better

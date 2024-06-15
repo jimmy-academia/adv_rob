@@ -3,7 +3,7 @@ from ipt.networks.tokenizers import MLPTokenizer
 from ipt.networks.iptresnet import IPTResnet
 from ipt.networks.decoder import Decoder
 
-def retrieve_ipt_model(args):
+def build_ipt_model(args):
     if args.config['model']['patcher_type'] == 'conv_disjoint':
         PatchMaker = DisjointPatchMaker(args)
     if args.config['model']['tokenizer_type'] == 'mlp':
