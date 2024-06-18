@@ -5,12 +5,18 @@ from autoattack import AutoAttack
 from ipt.attacks.flat_square import flat_square_attack
 from ipt.attacks.patch_square import PatchSquareAttack
 
-def pgd_attack(args, primary, model, labels):
-    secondary = primary.clone().detach()
+from utils import check
+
+def pgd_attack(args, primary, model, labels, sim=False):
+    secondary = primary + args.eps * (1- 2*torch.rand_like(primary))
+    secondary = secondary.detach()
+    secondary = secondary.clamp(0., 1.)
     for __ in range(args.attack_iters):
         variable = secondary.clone().detach().requires_grad_(True)
         output = model(variable)
-        if type(labels) is int:
+        if sim: ## similarity
+            loss = nn.MSELoss()(output, labels)
+        elif type(labels) is int:
             loss = - nn.CrossEntropyLoss()(output, torch.ones(primary.size(0), device=args.device).long() * labels)
         else:
             loss = nn.CrossEntropyLoss()(output, labels)
@@ -21,7 +27,6 @@ def pgd_attack(args, primary, model, labels):
         variable = variable.clamp(primary - args.eps, primary + args.eps)
         variable = variable.clamp(0., 1.) # for primary
         secondary = variable.detach()
-
     return secondary
 
 def square_attack(args, primary, model, labels):

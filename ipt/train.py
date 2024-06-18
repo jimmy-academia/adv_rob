@@ -6,134 +6,34 @@ from utils import check
 
 from collections import defaultdict
 from ipt.attacks import patch_square_attack, pgd_attack
+from ipt.data import get_dataloader
 
-def target_adv_training(args, iptresnet, train_loader):
-    iptresnet.train()
-    iptresnet.to(args.device)
-
-    # [incorrect][correct]
-    weight_map = torch.ones(args.vocab_size, args.vocab_size, device=args.device)
-    error_map = torch.zeros(args.vocab_size, args.vocab_size, device=args.device).long() 
-    # error_map -= torch.eye(args.vocab_size, device=args.device).long()
-
-    optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
-    pbar = tqdm(train_loader, ncols=88, desc='target_adv_patch')
-    for iter_, (images, pred) in enumerate(pbar):
-        images, pred = images.to(args.device), pred.to(args.device)
-        patches = iptresnet.patcher(images)
-        optimizer.zero_grad()
-        # collect target attack towards each vocab
-        all_adv_patches = []
-        adv_pred = []
-        new_pred = []
-        for v in range(args.vocab_size):
-            index_mask = pred != v
-            if index_mask.sum() == 0:
-                continue
-            adv_patches = pgd_attack(args, patches[index_mask], iptresnet.tokenizer, v)
-            all_adv_patches.append(adv_patches) # no support for full image perturbation yet
-            adv_pred.append(iptresnet.tokenizer(adv_patches).argmax(1))
-            new_pred.append(pred[index_mask])
-
-        all_adv_patches = torch.cat(all_adv_patches, 0)
-        adv_pred = torch.cat(adv_pred, 0)
-        new_pred = torch.cat(new_pred, 0)
-
-        # for each incorrect vocab, calculate the weighted loss
-        for v in range(args.vocab_size):
-            index_mask = adv_pred == v
-            if index_mask.sum() == 0:
-                continue
-            loss = nn.CrossEntropyLoss(weight=weight_map[v])(iptresnet.tokenizer(all_adv_patches[index_mask]), new_pred[index_mask])
-            loss.backward()
-            fooled_idx = new_pred[index_mask] != v
-            error_map[v].index_add_(0, new_pred[index_mask][fooled_idx], torch.ones_like(new_pred[index_mask][fooled_idx]))
-
-        optimizer.step()
-        break
-        # masked_error_map = error_map * (error_map > 0)
-        # max_vals, max_indices = torch.max(masked_error_map, dim=1)
-        # rows = torch.arange(error_map.size(0), device=error_map.device)
-        # pair_idx = torch.stack((rows[max_vals != 0], max_indices[max_vals != 0]), dim=1)
-
-        # sorted_ind = error_map.sort()[1]
-        # ranks = torch.arange(args.vocab_size, device=args.device).expand_as(sorted_ind)
-        # ranks = torch.zeros_like(sorted_ind).scatter_(1, sorted_ind, ranks).scatter_(1, sorted_ind, ranks)
-        # weight_map = torch.ones(args.vocab_size, args.vocab_size, device=args.device) * 2
-        # weight_map[pair_idx[:, 0], pair_idx[:, 1]] = 1
-
-        # pbar.set_postfix({'loss': f'{float(loss):.2f}', 'acc': f'{float((adv_pred == new_pred).float().mean()):.2f}'})
-        # if (iter_+1) % 10 == 0:
-        #     tqdm.write(f'loss: {float(loss):.2f} acc: {float((adv_pred == new_pred).float().mean()):.2f}')
-    return error_map
-
-def sub_patch_training(args, iptresnet, sub_loader):
+def stable_training(args, iptresnet, train_loader):
     iptresnet.train()
     iptresnet.to(args.device)
     optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
-    for images, toklabels in sub_loader:
-        images, toklabels = images.to(args.device), toklabels.to(args.device)
+    pbar = tqdm(train_loader, ncols=88, desc='prepare')
+    # prep_set = []
+    # for images, __ in pbar:
+    #     images = images.to(args.device)
+    #     patches = iptresnet.patcher(images, True)
+    #     targets = iptresnet.patch_embed(patches)
+    #     prep_set.extend([(patches[i].cpu(), targets[i].cpu()) for i in range(patches.size(0))])
+        
+    # prep_loader = get_dataloader(prep_set, args.batch_size)
+    # pbar = tqdm(prep_loader, ncols=88, desc='stable')
+
+    for images, __ in pbar:
+        images = images.to(args.device)
         patches = iptresnet.patcher(images, True)
-        loss = nn.CrossEntropyLoss()(iptresnet.tokenizer(patches), toklabels)
+        adv_patches = pgd_attack(args, patches, iptresnet.patch_embed, patches, True)
+        mseloss = nn.MSELoss()(iptresnet.patch_embed(adv_patches), patches)
             
         optimizer.zero_grad()
-        loss.backward()
+        mseloss.backward()
         optimizer.step()
+        pbar.set_postfix(l=f'{float(mseloss):.4f}')
 
-def fit_silos(silos, patch, eps):
-    patch = patch.unsqueeze(0)
-    joined = False
-    for i in range(len(silos)):
-        group = silos[i]
-        if any ((group - patch).abs().max(1)[0] == 0):
-            joined = True
-            break
-        if any((group - patch).abs().max(1)[0] < eps):
-            silos[i] = torch.cat([group, patch], 0)
-            joined = True
-            break
-    if not joined:
-        silos.append(patch)
-    return silos
-
-def print_len_list(silos, pointer, image_counter):
-    len_list = [len(s) for s in silos]
-    len_list[pointer:] = ['|'] + len_list[pointer:]
-    div = max(pointer*2, 20)
-    len_list = len_list[:div] + [sum(len_list[div:])] + [f'image count:{image_counter} len:{len(silos)}']
-    tqdm.write(f'{len_list}')
-
-def patch_overlap_exploration(args, iptresnet, train_loader):
-    iptresnet.patcher.to(args.device)
-    silos = []
-    image_counter = 0
-    for images, labels in train_loader:
-        image_counter += len(images)
-        print('---------------')
-        images, labels = images.to(args.device), labels.to(args.device)
-        patches = iptresnet.patcher(images, True)
-        for iter_, patch in enumerate(tqdm(patches, ncols=89, desc='patch overlap analysis...')):
-            silos = fit_silos(silos, patch, args.eps)
-            if (iter_+1) % (len(patches)//2) == 0 or iter_ == len(patches)-1:
-                tqdm.write('depth-first re-analyse silos')
-                pointer = 1
-                silos.sort(key=lambda x: len(x), reverse=True)
-                print_len_list(silos, pointer, image_counter)
-                while pointer < len(silos):
-                    if pointer > 5 and len(silos[pointer]) <= 10:
-                        break
-                    _length = len(silos[pointer-1])
-                    sub_patches = torch.cat(silos[pointer:], 0)
-                    silos = silos[:pointer]
-                    for patch in sub_patches:
-                        silos = fit_silos(silos, patch, args.eps)
-                    silos.sort(key=lambda x: len(x), reverse=True)
-                    print_len_list(silos, pointer, image_counter)
-                    
-                    if len(silos[pointer-1]) == _length:
-                        pointer += 1
-                    
-                    
 def avg_patch_training(args, iptresnet, train_loader, kill=None):
     iptresnet.train()
     iptresnet.to(args.device)
@@ -180,11 +80,22 @@ def avg_patch_training(args, iptresnet, train_loader, kill=None):
     iptresnet.embedding.weight = nn.Parameter(anchors)
     iptresnet.visualize_tok_image(images[0])
 
-def adv_patch_training(args, iptresnet, prep_loader, attack_type='pgd'):
+def prep_dataset(args, iptresnet, train_loader):
+    prep_set = []
+    for images, __ in tqdm(train_loader, ncols=80, desc='preparing token_prediction', leave=False):
+        images = images.to(args.device)
+        pred = torch.argmax(iptresnet.tokenize_image(images), dim=2)
+        prep_set.extend([(images[i].cpu(), pred[i].cpu()) for i in range(images.size(0))])
+    return prep_set
+
+
+def adv_patch_training(args, iptresnet, train_loader, attack_type='pgd'):
     iptresnet.train()
     iptresnet.to(args.device)
     optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
 
+    prep_set = prep_dataset(args, iptresnet, train_loader)
+    prep_loader = get_dataloader(prep_set, batch_size = args.batch_size)
     pbar = tqdm(prep_loader, ncols=88, desc=f'{attack_type[0]}.adv_patch')
 
     # adv_set = []
@@ -216,16 +127,12 @@ def adv_patch_training(args, iptresnet, prep_loader, attack_type='pgd'):
         adv_mean = f'{float(adv_mean.sum()/len(adv_mean)):.2f}'
         pbar.set_postfix({'acc': f'{adv_acc:.2f}', 'macc': adv_mean, 'l': adv_loss.item()})
 
-def train_classifier(args, iptresnet, train_loader, error_map=None):
+
+def train_classifier(args, iptresnet, train_loader):
     iptresnet.train()
     optimizer = torch.optim.Adam(iptresnet.classifier.parameters(), lr=0.001)
     train_pbar = tqdm(range(args.config['train']['train_epochs']), ncols=90, desc='train classifier')
 
-    if error_map is not None:
-        error_map = error_map/error_map.sum()
-        indices = (error_map > 0).nonzero()
-        probs = error_map[indices[:, 0], indices[:, 1]]
-        
     for i in train_pbar:
         cor = tot = 0
         for images, labels in train_loader:
@@ -233,18 +140,7 @@ def train_classifier(args, iptresnet, train_loader, error_map=None):
             images = images.to(args.device)
             labels = labels.to(args.device)
             optimizer.zero_grad()
-            if error_map is None:
-                output = iptresnet(images)
-            else:
-                tok_pred = iptresnet.tokenize_image(images, True).argmax(1)
-                rand_choice = torch.multinomial(probs, tok_pred.size(0), replacement=True)
-                flip_ind = tok_pred == indices[rand_choice, 1]
-                tok_pred[flip_ind] = indices[rand_choice[flip_ind], 0]
-
-                tok_pred = tok_pred.view(images.size(0), -1)
-                x = iptresnet.embedding(tok_pred)
-                x = iptresnet.patcher.inverse(x)
-                output = iptresnet.classifier(x)                
+            output = iptresnet(images)
 
             loss = torch.nn.CrossEntropyLoss()(output, labels)
             loss.backward()
@@ -252,10 +148,10 @@ def train_classifier(args, iptresnet, train_loader, error_map=None):
             cor += (output.argmax(dim=1) == labels).sum()
             tot += len(labels)
             accuracy = float(cor/tot)
-            train_pbar.set_postfix(l=f'{float(loss):.2f}', acc=f'{accuracy:.3f}')
+            train_pbar.set_postfix(l=f'{float(loss):.4f}', acc=f'{accuracy:.3f}')
 
 def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
-    total = correct = adv_correct = psadv_correct = 0
+    total = correct = adv_correct = 0
     iptresnet.eval()
     pbar = tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False)
     for images, labels in pbar:
@@ -282,8 +178,8 @@ def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
         else:
             pbar.set_postfix({'macc': adv_mean})
 
-    iptresnet.visualize_tok_image(images[0])
-    iptresnet.visualize_tok_image(adv_images[0])
+    # iptresnet.visualize_tok_image(images[0])
+    # iptresnet.visualize_tok_image(adv_images[0])
 
     return correct, adv_correct, total
 
