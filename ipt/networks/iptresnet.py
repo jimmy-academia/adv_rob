@@ -18,6 +18,7 @@ class IPTResnet(nn.Module):
         self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)
         self.classifier = get_resnet_model(num_classes=args.num_classes, channels=args.channels)
         self.softmax = nn.Softmax(-1)
+        self.tau = 10
 
     def tokenize_image(self, x, flat=False):
         x = self.patcher(x, flat)  # (batch_size, num_patches, patch_numel)
@@ -26,13 +27,13 @@ class IPTResnet(nn.Module):
     
     def patch_embed(self, p):
         p = self.tokenizer(p)
-        p = self.softmax(p)
+        p = self.softmax(p * self.tau)
         p = torch.matmul(p, self.embedding.weight)
         return p
 
     def forward(self, x):
         x = self.tokenize_image(x)
-        x = self.softmax(x)
+        x = self.softmax(x * self.tau)
         x = torch.matmul(x, self.embedding.weight)
         x = self.patcher.inverse(x)
         x = self.classifier(x)

@@ -5,8 +5,8 @@ from utils import set_seeds, check
 
 from ipt.data import get_dataset, get_dataloader
 from ipt.networks import build_ipt_model
-from ipt.train import avg_patch_training, adv_patch_training, stable_training, train_classifier, test_attack
-from ipt.attacks import square_attack
+from ipt.train import avg_patch_training, adv_patch_training, stable_training, train_classifier, test_attack, adversarial_training
+from ipt.attacks import square_attack, pgd_attack
 
 from tqdm import tqdm
 
@@ -22,14 +22,17 @@ def main():
 
 
     avg_patch_training(args, iptresnet, train_loader)
-    for iter_ in range(300):
-        stable_training(args, iptresnet, train_loader)
+    train_classifier(args, iptresnet, train_loader)
+    
+    for iter_ in range(30):
+        # stable_training(args, iptresnet, train_loader)
+        adversarial_training(args, iptresnet, train_loader)
         # adv_patch_training(args, iptresnet, train_loader)
-        if (iter_ + 1) % 10 == 0:
-            train_classifier(args, iptresnet, train_loader)
-            correct, adv_correct, total = test_attack(args, iptresnet, test_loader, square_attack, True)
-            message = f'test acc: {correct/total:.4f}, adv acc: {adv_correct/total:.4f}...'
-            print(message)
+        # correct, adv_correct, total = test_attack(args, iptresnet, test_loader, pgd_attack, True)
+        correct, adv_correct, total = test_attack(args, iptresnet, test_loader, square_attack, True)
+        message = f'test acc: {correct/total:.4f}, adv acc: {adv_correct/total:.4f}...'
+        print(message, iptresnet.tau)
+
 
 
 if __name__ == '__main__':  

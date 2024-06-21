@@ -1,8 +1,8 @@
 name: "dev"
 description: "original experiment with pgd adversarial training"
 dataset: 'mnist'
-batch_size: 128
-patch_size: 2
+batch_size: 512
+patch_size: 4
 vocab_size: 32
 model:
     patcher_type: 'conv_disjoint'

@@ -6,6 +6,8 @@ import random
 import torch
 import numpy as np
 
+torch.set_printoptions(sci_mode=False)
+
 def set_seeds(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)

@@ -8,11 +8,29 @@ from collections import defaultdict
 from ipt.attacks import patch_square_attack, pgd_attack
 from ipt.data import get_dataloader
 
+def adversarial_training(args, iptresnet, train_loader):
+    iptresnet.train()
+    iptresnet.to(args.device)
+    optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
+
+    iter_ = 0
+    pbar = tqdm(train_loader, ncols=88, desc='adversarial training')
+    for images, labels in pbar:
+        iter_ += 1
+        if iter_ > 10:
+            break
+        images, labels = images.to(args.device), labels.to(args.device)
+        adv_images = pgd_attack(args, images, iptresnet, labels)
+        output = iptresnet(adv_images)
+        loss = torch.nn.CrossEntropyLoss()(output, labels)
+        loss.backward()
+        optimizer.step()
+        pbar.set_postfix({'acc': (output.argmax(dim=1) == labels).sum()/len(output)})
+        
 def stable_training(args, iptresnet, train_loader):
     iptresnet.train()
     iptresnet.to(args.device)
     optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
-    pbar = tqdm(train_loader, ncols=88, desc='prepare')
     # prep_set = []
     # for images, __ in pbar:
     #     images = images.to(args.device)
@@ -23,16 +41,24 @@ def stable_training(args, iptresnet, train_loader):
     # prep_loader = get_dataloader(prep_set, args.batch_size)
     # pbar = tqdm(prep_loader, ncols=88, desc='stable')
 
+    # num_patches = 0
+    embed_grad = torch.zeros_like(iptresnet.embedding.weight)
+    pbar = tqdm(train_loader, ncols=88, desc='similarity training')
     for images, __ in pbar:
         images = images.to(args.device)
         patches = iptresnet.patcher(images, True)
         adv_patches = pgd_attack(args, patches, iptresnet.patch_embed, patches, True)
         mseloss = nn.MSELoss()(iptresnet.patch_embed(adv_patches), patches)
-            
+
         optimizer.zero_grad()
         mseloss.backward()
+        embed_grad += iptresnet.embedding.weight.grad.detach()
+        # num_patches += len(patches)
         optimizer.step()
         pbar.set_postfix(l=f'{float(mseloss):.4f}')
+
+        new_embeddings = iptresnet.embedding.weight.detach() - embed_grad/len(patches)
+        iptresnet.embedding.weight = nn.Parameter(new_embeddings)
 
 def avg_patch_training(args, iptresnet, train_loader, kill=None):
     iptresnet.train()
@@ -102,15 +128,15 @@ def adv_patch_training(args, iptresnet, train_loader, attack_type='pgd'):
     for images, pred in pbar:
         images, pred = images.to(args.device), pred.to(args.device)
         
-        args_big = copy.deepcopy(args)
-        args_big.eps = args.eps * 2
+        # args_big = copy.deepcopy(args)
+        # args_big.eps = args.eps * 2
 
         if attack_type=='pgd':
             patches = iptresnet.patcher(images, True)
-            adv_images = pgd_attack(args_big, patches, iptresnet.tokenizer, pred.view(-1))
+            adv_images = pgd_attack(args, patches, iptresnet.tokenizer, pred.view(-1))
             adv_images = iptresnet.patcher.inverse(adv_images.view(images.size(0), -1, args.patch_numel))
         elif attack_type== 'square':
-            adv_images = patch_square_attack(args_big, images, iptresnet.tokenize_image, pred)
+            adv_images = patch_square_attack(args, images, iptresnet.tokenize_image, pred)
         else:
             raise ValueError(f'attack_type {attack_type} not defined')
 
@@ -178,8 +204,8 @@ def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
         else:
             pbar.set_postfix({'macc': adv_mean})
 
-    # iptresnet.visualize_tok_image(images[0])
-    # iptresnet.visualize_tok_image(adv_images[0])
+    iptresnet.visualize_tok_image(images[0])
+    iptresnet.visualize_tok_image(adv_images[0])
 
     return correct, adv_correct, total
 
