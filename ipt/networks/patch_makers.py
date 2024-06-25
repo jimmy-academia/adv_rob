@@ -37,9 +37,9 @@ class DisjointPatchMaker(nn.Module):
         batch_size = x.size(0)
         x = x.permute(0, 2, 3, 1)  # Put patch_numel to the last dimension
         if flat:
-            return x.contiguous().view(-1, self.args.patch_numel)
+            return x.contiguous().view(-1, self.args.patch_numel)  # Outputs: [num_patches, patch_numel]
         else:
-            return x.contiguous().view(batch_size, -1, self.args.patch_numel)  
+            return x.contiguous().view(batch_size, -1, self.args.patch_numel)  # Outputs: [batch_size, num_patches, patch_numel]
 
     def inverse(self, x):
         assert len(x.shape) in [2, 3], 'Input shape should be either [batch_size, num_patches, patch_numel] or [num_patches, patch_numel]'

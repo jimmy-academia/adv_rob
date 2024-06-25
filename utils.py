@@ -6,6 +6,10 @@ import random
 import torch
 import numpy as np
 
+import re
+import json
+import argparse
+
 torch.set_printoptions(sci_mode=False)
 
 def set_seeds(seed):
@@ -48,3 +52,22 @@ def writef(path, content):
 def awritef(path, content):
     with open(path, 'a') as f:
         f.write(content)
+
+class NamespaceEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, argparse.Namespace):
+      return obj.__dict__
+    else:
+      return super().default(obj)
+
+def dumpj(dictionary, filepath):
+    with open(filepath, "w") as f:
+        obj = json.dumps(dictionary, indent=4, cls=NamespaceEncoder)
+        obj = re.sub(r'("|\d+),\s+', r'\1, ', obj)
+        obj = re.sub(r'\[\n\s*("|\d+)', r'[\1', obj)
+        obj = re.sub(r'("|\d+)\n\s*\]', r'\1]', obj)
+        f.write(obj)
+
+def loadj(filepath):
+    with open(filepath) as f:
+        return json.load(f)
