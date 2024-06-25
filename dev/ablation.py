@@ -4,6 +4,7 @@ import time
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import torchvision
 
 from tqdm import tqdm
 from argparse import Namespace
@@ -264,6 +265,13 @@ def plot_accuracies(records, title, key, ylabel, filename):
     plt.savefig(f'ckpt/fair_fig/{filename}.jpg')
     plt.close()
 
+
+def get_resnet_model(num_classes=10, channels=3):
+    model = torchvision.models.resnet18(weights=None)
+    model.conv1 = nn.Conv2d(channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    model.fc = nn.Linear(model.fc.in_features, num_classes)
+    return model
+
 def main():
     num_iter = 5
     aptnet = APTNet(args).to(args.device)
@@ -281,13 +289,17 @@ def main():
     
     # input('pause... check')
     ## AT
-    name = 'normal'
-    model = Dummy(ext, Classifier()).to(args.device)
-    for adv_train_type in ['pgd', 'square']:
-        print(f' == {name}, AT_{adv_train_type} ==')
-        path = Path(f'ckpt/ablation/{name}_AT_{adv_train_type}.json')
-        Record = rec_adversarial_training(adv_train_type, num_iter, model)
-        dumpj(Record, path)
+    for name in ['small', 'resnet18']:
+        if name == 'small':
+            model = Dummy(ext, Classifier()).to(args.device)
+        elif name == 'resnet18':
+            model = get_resnet_model(channels=args.channels).to(args.device)
+        
+        for adv_train_type in ['pgd', 'square']:
+            print(f' == {name}, AT_{adv_train_type} ==')
+            path = Path(f'ckpt/ablation/{name}_AT_{adv_train_type}.json')
+            Record = rec_adversarial_training(adv_train_type, num_iter, model)
+            dumpj(Record, path)
 
 
     ## AST
