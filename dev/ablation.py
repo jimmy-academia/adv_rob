@@ -155,7 +155,7 @@ def test_attack(args, model, test_loader, adv_perturb, fast=True):
     return correct, adv_correct, total
 
 
-def rec_iptadvsim_training(adv_train_type, num_iter, model):
+def rec_iptadvsim_training(adv_train_type, num_iter, model, _type):
 
     Record = defaultdict(list)
 
@@ -167,6 +167,21 @@ def rec_iptadvsim_training(adv_train_type, num_iter, model):
     elapsed_time = 0
     for iter_ in range(num_iter):
         start = time.time()    
+
+
+        if _type == 'pretrain':
+            pbar = tqdm(train_loader, ncols=90, desc='IPT sim pretraining')
+            for images, labels in pbar:
+                images = images.to(args.device)
+                labels = labels.to(args.device)
+                adv_images = pgd_attack(args, images, model, images, True)
+                output = model(adv_images)
+                mseloss = nn.MSELoss()(output, images)
+                optimizer.zero_grad()
+                mseloss.backward()
+                optimizer.step()
+                pbar.set_postfix(loss=mseloss.item())
+
         pbar = tqdm(train_loader, ncols=88, desc='adversarial/sim training')
         dummy = Dummy(model, classifier)
         for images, labels in pbar:
@@ -295,7 +310,8 @@ def main():
         elif name == 'resnet18':
             model = get_resnet_model(channels=args.channels).to(args.device)
         
-        for adv_train_type in ['pgd', 'square']:
+        for adv_train_type in ['pgd']:
+        # for adv_train_type in ['pgd', 'square']:
             print(f' == {name}, AT_{adv_train_type} ==')
             path = Path(f'ckpt/ablation/{name}_AT_{adv_train_type}.json')
             Record = rec_adversarial_training(adv_train_type, num_iter, model)
@@ -304,17 +320,20 @@ def main():
 
     ## AST
     for _net, name in zip([iptnet, aptnet], ['ipt', 'apt']):
-        for do_softmax in [True, False]:
-            args.do_softmax = do_softmax
-            for adv_train_type in ['pgd', 'square']:
-                soft_fix = 'soft' if do_softmax else 'nosoft'
+        for _type in ['pretrain', 'AST']:
+            for do_softmax in [True, False]:
+                args.do_softmax = do_softmax
+                for adv_train_type in ['pgd', 'square']:
+                    soft_fix = 'soft' if do_softmax else 'nosoft'
+                    pre_fix = 'pre' if _type == 'pretrain' else ''
 
-                print(f' == {name}+{soft_fix}, AST_{adv_train_type} ==')
+                    print(f' == {name}+{soft_fix}, {pre_fix}AST_{adv_train_type} ==')
 
-                path = Path(f'ckpt/ablation/{name}_{soft_fix}_AST_{adv_train_type}.json')
 
-                Record = rec_iptadvsim_training(adv_train_type, num_iter, _net)
-                dumpj(Record, path)
+                    path = Path(f'ckpt/ablation/{name}_{soft_fix}_{pre_fix}AST_{adv_train_type}.json')
+
+                    Record = rec_iptadvsim_training(adv_train_type, num_iter, _net, _type)
+                    dumpj(Record, path)
 
     for _net, name in zip([iptnet, aptnet], ['ipt', 'apt']):
         model = Dummy(_net, Classifier()).to(args.device)
