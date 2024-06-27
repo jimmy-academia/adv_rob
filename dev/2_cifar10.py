@@ -292,6 +292,9 @@ def main():
     verylarge = Extention(args, [16, 64, 128, 256, 512])
     # classifier = Classifier(args)
 
+    print(aptnet)
+    print(aptnet.args.vocab_size)
+
     resnet18 = get_resnet_model(channels=args.channels)
     vgg11 = get_vgg_model(channels=args.channels)
 
@@ -314,7 +317,7 @@ def main():
     del model # release memory
 
     ## control group
-    for name, _net in zip(['apt', 'small', 'medium', 'large', 'verylarge', 'resnet18', 'vgg11'], [aptnet, small, medium, large, verylarge, classifier, resnet18, vgg11]):
+    for name, _net in zip(['apt', 'small', 'medium', 'large', 'verylarge', 'resnet18', 'vgg11'], [aptnet, small, medium, large, verylarge, resnet18, vgg11]):
         if name not in ['resnet18', 'vgg11']:
             model = Dummy(_net, Classifier(args)).to(args.device)
         else:

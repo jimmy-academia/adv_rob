@@ -308,7 +308,7 @@ def main():
     del model # release memory
 
     ## control group
-    for name, _net in zip(['apt', 'small', 'medium', 'large', 'verylarge', 'resnet18', 'vgg11'], [aptnet, small, medium, large, verylarge, classifier, resnet18, vgg11]):
+    for name, _net in zip(['apt', 'small', 'medium', 'large', 'verylarge', 'resnet18', 'vgg11'], [aptnet, small, medium, large, verylarge, resnet18, vgg11]):
         if name not in ['resnet18', 'vgg11']:
             model = Dummy(_net, Classifier(args)).to(args.device)
         else:
