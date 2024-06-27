@@ -27,7 +27,8 @@ args.patch_numel = args.channels * args.patch_size**2
 args.num_patches_width = args.image_size // args.patch_size
 
 # args.vocab_size = 12
-args.vocab_size = 256
+# args.vocab_size = 256
+args.vocab_size = 1024
 args.eps = 0.3 if args.dataset == 'mnist' else 8/255
 args.attack_iters = 100
 
