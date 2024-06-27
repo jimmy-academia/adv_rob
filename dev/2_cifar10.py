@@ -44,8 +44,8 @@ class APTNet(nn.Module):
         self.patcher = DisjointPatchMaker(args)
         self.patch_numel = args.channels * args.patch_size * args.patch_size
         
-        self.conv1 = nn.Conv2d(args.channels, 32, kernel_size=7, stride=1, padding=4)
-        self.conv2 = nn.Conv2d(32, 128, kernel_size=4, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(args.channels, 32, kernel_size=7, stride=1, padding=3)
+        self.conv2 = nn.Conv2d(32, 128, kernel_size=4, stride=2, padding=1)
         self.conv3 = nn.Conv2d(128, args.vocab_size, kernel_size=1, stride=1)
 
         # self.conv1 = nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1)
