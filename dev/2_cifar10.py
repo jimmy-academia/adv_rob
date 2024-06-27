@@ -27,7 +27,7 @@ args.patch_numel = args.channels * args.patch_size**2
 args.num_patches_width = args.image_size // args.patch_size
 
 # args.vocab_size = 12
-args.vocab_size = 64
+args.vocab_size = 256
 args.eps = 0.3 if args.dataset == 'mnist' else 8/255
 args.attack_iters = 100
 
@@ -43,6 +43,7 @@ class APTNet(nn.Module):
         self.args = args
         self.patcher = DisjointPatchMaker(args)
         self.patch_numel = args.channels * args.patch_size * args.patch_size
+        #self.conv1 = nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1)
         self.conv1 = nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(64, args.vocab_size, kernel_size=1, stride=1)
