@@ -134,10 +134,7 @@ def test_attack(args, model, test_loader, adv_perturb, fast=True):
 
 def rec_iptadvsim_training(adv_train_type, num_iter, model):
 
-    if args.do_softmax:
-        model.tau = 0.1
-    else:
-        model.tau = 1
+    model.tau = 1
 
     Record = defaultdict(list)
 
@@ -162,7 +159,7 @@ def rec_iptadvsim_training(adv_train_type, num_iter, model):
             optimizer.step()
             pbar.set_postfix(loss=mseloss.item())
 
-        pbar = tqdm(train_loader, ncols=88, desc='adversarial/sim training')
+        pbar = tqdm(train_loader, ncols=88, desc='adv/sim training')
         dummy = Dummy(model, classifier)
         for images, labels in pbar:
             images, labels = images.to(args.device), labels.to(args.device)
@@ -188,7 +185,7 @@ def rec_iptadvsim_training(adv_train_type, num_iter, model):
             pbar.set_postfix({'adv_acc': float(adv_acc), 'tau': model.tau})
 
         if args.do_softmax:
-            model.tau *= 2
+            model.tau *= 1.2
 
         elapsed_time += time.time() - start
         Record['iter'].append(iter_)
@@ -277,7 +274,7 @@ def get_resnet_model(num_classes=10, channels=3):
 
 def main():
 
-    ckpt_dir = Path('ckpt/1_more_compare')
+    ckpt_dir = Path('ckpt/2_cifar')
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
     args.do_softmax = False
@@ -304,7 +301,7 @@ def main():
         model = aptnet.to(args.device)
 
         print(f' == aptnet+{soft_fix}, AST ==')
-        path = ckpt_dir/f'/aptnet_{soft_fix}_AST.json'
+        path = ckpt_dir/f'aptnet_{soft_fix}_AST.json'
         Record = rec_iptadvsim_training('pgd', num_iter, model)
         dumpj(Record, path)
     
@@ -318,7 +315,7 @@ def main():
             model = _net.to(args.device)
         
         print(f' == {name}, AT ==')
-        path = ckpt_dir/f'/{name}_AT.json'
+        path = ckpt_dir/f'{name}_AT.json'
         Record = rec_adversarial_training('pgd', num_iter, model)
         dumpj(Record, path)
         del model # release memory
