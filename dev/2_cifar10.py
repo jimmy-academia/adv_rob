@@ -46,7 +46,7 @@ class APTNet(nn.Module):
         #self.conv1 = nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1)
         self.conv1 = nn.Conv2d(args.channels, 32, kernel_size=4, stride=2, padding=1)  # Increased channels to 32, kernel_size=4
         self.conv2 = nn.Conv2d(32, 128, kernel_size=4, stride=1, padding=2)  # Increased channels to 128, kernel_size=4, adjusted padding
-        self.conv3 = nn.Conv2d(128, args.vocab_size * 2, kernel_size=4, stride=1, padding=2)  # Doubled vocab_size for channels, kernel_size=4, adjusted padding
+        self.conv3 = nn.Conv2d(128, args.vocab_size, kernel_size=4, stride=1, padding=2)  # Doubled vocab_size for channels, kernel_size=4, adjusted padding
 
         # self.conv1 = nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1)
         # self.conv2 = nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1)
