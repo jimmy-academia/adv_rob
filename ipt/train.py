@@ -176,38 +176,59 @@ def train_classifier(args, iptresnet, train_loader):
             accuracy = float(cor/tot)
             train_pbar.set_postfix(l=f'{float(loss):.4f}', acc=f'{accuracy:.3f}')
 
-def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
+def test_attack(args, model, test_loader, adv_perturb, fast=True):
     total = correct = adv_correct = 0
-    iptresnet.eval()
+    model.eval()
     pbar = tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False)
     for images, labels in pbar:
         images = images.to(args.device)
         labels = labels.to(args.device)
-        pred = iptresnet(images)
-        correct += (pred.argmax(dim=1) == labels).sum()
+        pred = model(images)
+        correct += float((pred.argmax(dim=1) == labels).sum())
 
-        adv_images = adv_perturb(args, images, iptresnet, labels)
-        adv_pred = iptresnet(adv_images)
-        adv_correct += (adv_pred.argmax(dim=1) == labels).sum()
+        adv_images = adv_perturb(args, images, model, labels)
+        adv_pred = model(adv_images)
+        adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
-
-        tok_pred = torch.argmax(iptresnet.tokenize_image(images), dim=2)
-        adv_mean = (iptresnet.tokenize_image(adv_images).max(2)[1] == tok_pred).sum(1)/tok_pred.size(1)
-        adv_mean = f'{float(adv_mean.sum()/len(adv_mean)):.2f}'
-
         if fast:
-            print()
-            print('macc:', adv_mean)
-            print()
             break
-        else:
-            pbar.set_postfix({'macc': adv_mean})
-
-    iptresnet.visualize_tok_image(images[0])
-    iptresnet.visualize_tok_image(adv_images[0])
-
     return correct, adv_correct, total
+
+
+
+# def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
+#     total = correct = adv_correct = 0
+#     iptresnet.eval()
+#     pbar = tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False)
+#     for images, labels in pbar:
+#         images = images.to(args.device)
+#         labels = labels.to(args.device)
+#         pred = iptresnet(images)
+#         correct += (pred.argmax(dim=1) == labels).sum()
+
+#         adv_images = adv_perturb(args, images, iptresnet, labels)
+#         adv_pred = iptresnet(adv_images)
+#         adv_correct += (adv_pred.argmax(dim=1) == labels).sum()
+#         total += len(labels)
+
+
+#         tok_pred = torch.argmax(iptresnet.tokenize_image(images), dim=2)
+#         adv_mean = (iptresnet.tokenize_image(adv_images).max(2)[1] == tok_pred).sum(1)/tok_pred.size(1)
+#         adv_mean = f'{float(adv_mean.sum()/len(adv_mean)):.2f}'
+
+#         if fast:
+#             print()
+#             print('macc:', adv_mean)
+#             print()
+#             break
+#         else:
+#             pbar.set_postfix({'macc': adv_mean})
+
+#     iptresnet.visualize_tok_image(images[0])
+#     iptresnet.visualize_tok_image(adv_images[0])
+
+#     return correct, adv_correct, total
 
 
     ## 2D scatter by linear indices and bincount

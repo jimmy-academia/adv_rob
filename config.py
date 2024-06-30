@@ -45,3 +45,20 @@ def config_arguments(config):
 
     return args
 
+
+def default_arguments(dataset):
+    args = argparse.Namespace(batch_size=128, dataset=dataset, seed=0)
+    args.device = torch.device("cuda:0")
+    args.channels = 1 if args.dataset == 'mnist' else 3
+    args.image_size = 224 if args.dataset == 'imagenet' else 32
+        
+    args.patch_size = 2
+    args.patch_numel = args.channels * args.patch_size**2 
+    args.num_patches_width = args.image_size // args.patch_size
+
+    args.vocab_size = 12
+    args.eps = 0.3 if args.dataset == 'mnist' else 8/255
+    num_class_dict = {'mnist': 10, 'cifar10': 10, 'cifar100':100, 'imagenet': 1000}
+    args.num_classes = num_class_dict[args.dataset]
+    args.attack_iters = 100
+    return args
