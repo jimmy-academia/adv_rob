@@ -102,15 +102,15 @@ def run_tests(args, model, test_loader, Record):
     return Record
 
 
-def plot_records(record_paths, labels):
+def plot_records(record_paths, labels, x_axis='epoch'):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(2, 2, figsize=(12, 8), dpi=150)
     for record_path, label in zip(record_paths, labels):
         record = loadj(record_path)
-        ax[0, 0].plot(record['epoch'], record['pgd_test_acc'], label=label)
-        ax[0, 1].plot(record['epoch'], record['pgd_adv_acc'], label=label)
-        ax[1, 0].plot(record['epoch'], record['square_test_acc'], label=label)
-        ax[1, 1].plot(record['epoch'], record['square_adv_acc'], label=label)
+        ax[0, 0].plot(record[x_axis], record['pgd_test_acc'], label=label)
+        ax[0, 1].plot(record[x_axis], record['pgd_adv_acc'], label=label)
+        ax[1, 0].plot(record[x_axis], record['square_test_acc'], label=label)
+        ax[1, 1].plot(record[x_axis], record['square_adv_acc'], label=label)
     
     ax[0, 0].set_title('PGD Test Accuracy')
     ax[0, 1].set_title('PGD Adv Accuracy')
@@ -120,7 +120,7 @@ def plot_records(record_paths, labels):
         for j in range(2):
             ax[i, j].legend()
             ax[i, j].grid()
-    plt.savefig('compare_ast_at.jpg')
+    plt.savefig(f'compare_ast_at_{x_axis}.jpg')
 
 def main():
     args = default_arguments('mnist')
@@ -167,6 +167,7 @@ def main():
     print(f"Number of trainable parameters in apt-size CNN model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     plot_records(record_paths, ['APTNet AST', 'APTNet AT', 'CNN AT'])
+    plot_records(record_paths, ['APTNet AST', 'APTNet AT', 'CNN AT'], 'elapsed_time')
     print('Done!')
 
 if __name__ == '__main__':
