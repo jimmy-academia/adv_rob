@@ -7,6 +7,7 @@ from ipt.attacks.patch_square import PatchSquareAttack
 
 from utils import check
 
+
 def pgd_attack(args, primary, model, labels, sim=False):
     secondary = primary + args.eps * (1- 2*torch.rand_like(primary))
     secondary = secondary.detach()
@@ -29,12 +30,20 @@ def pgd_attack(args, primary, model, labels, sim=False):
         secondary = variable.detach()
     return secondary
 
-def square_attack(args, primary, model, labels):
+def square_attack(args, primary, model, labels, random=False):
     if len(primary.shape) == 2:
         return flat_square_attack(args, primary, model, labels)
     else:
+        version = 'rand' if random else 'standard'
         adversary = AutoAttack(model, norm='Linf', eps=args.eps, version='custom', attacks_to_run=['square'], verbose=False, device=args.device)
         return adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
+
+
+def auto_attack(args, primary, model, labels, random=False):
+    _version = 'plus' if random else 'standard' #'rand'
+    adversary = AutoAttack(model, norm='Linf', eps=args.eps, version=_version, verbose=False, device=args.device)
+    return adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
+
 
 def patch_square_attack(args, primary, model, labels):
     patch_square_attacker = PatchSquareAttack(model, norm='Linf', eps=args.eps, device=args.device)

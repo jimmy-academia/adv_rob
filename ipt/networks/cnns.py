@@ -62,3 +62,114 @@ class AptSizeClassifier(nn.Module):
         x = self.fc2(x)
         
         return x
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class smallVAENet(nn.Module):
+    def __init__(self, args):
+        super(smallVAENet, self).__init__()
+        self.args = args
+        self.encoder = nn.Sequential(
+            nn.Conv2d(args.channels, args.vocab_size, kernel_size=3, stride=2, padding=1),  # [B, 16, H/2, W/2]
+            nn.ReLU(),
+            # nn.Conv2d(16, args.vocab_size, kernel_size=1, stride=1),  # [B, vocab_size, H/2, W/2]
+            # nn.ReLU()
+        )
+        latent_dim = args.latent_dim if hasattr(args, 'latent_dim') else 4
+        
+        # Assuming args.vocab_size is the latent dimension
+        self.fc_mu = nn.Linear(args.vocab_size * (args.image_size // 2) * (args.image_size // 2), latent_dim)
+        self.fc_logvar = nn.Linear(args.vocab_size * (args.image_size // 2) * (args.image_size // 2), latent_dim)
+        
+        self.fc_decode = nn.Linear(latent_dim, args.vocab_size * (args.image_size // 2) * (args.image_size // 2))
+        
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(args.vocab_size, args.channels, kernel_size=3, stride=2, padding=1,  output_padding=1),  # [B, 64, H/2, W/2]
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(64, 16, kernel_size=3, stride=1, padding=1),  # [B, 16, H/2, W/2]
+            # nn.ReLU(),
+            # nn.ConvTranspose2d(64, args.channels, kernel_size=3, stride=2, padding=1, output_padding=1),  # [B, channels, H, W]
+            nn.Sigmoid()
+        )
+
+    def encode(self, x):
+        h = self.encoder(x)
+        h = h.view(h.size(0), -1)
+        mu = self.fc_mu(h)
+        logvar = self.fc_logvar(h)
+        return mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    def decode(self, z):
+        h = self.fc_decode(z)
+        h = h.view(h.size(0), self.args.vocab_size, self.args.image_size // 2, self.args.image_size // 2)
+        return self.decoder(h)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z)
+
+
+
+
+
+class VAENet(nn.Module):
+    def __init__(self, args):
+        super(VAENet, self).__init__()
+        self.args = args
+        self.encoder = nn.Sequential(
+            nn.Conv2d(args.channels, 16, kernel_size=3, stride=2, padding=1),  # [B, 16, H/2, W/2]
+            nn.ReLU(),
+            nn.Conv2d(16, 64, kernel_size=3, stride=1, padding=1),  # [B, 64, H/2, W/2]
+            nn.ReLU(),
+            nn.Conv2d(64, args.vocab_size, kernel_size=1, stride=1),  # [B, vocab_size, H/2, W/2]
+            nn.ReLU()
+        )
+        latent_dim = args.latent_dim if hasattr(args, 'latent_dim') else 128
+        
+        # Assuming args.vocab_size is the latent dimension
+        self.fc_mu = nn.Linear(args.vocab_size * (args.image_size // 2) * (args.image_size // 2), latent_dim)
+        self.fc_logvar = nn.Linear(args.vocab_size * (args.image_size // 2) * (args.image_size // 2), latent_dim)
+        
+        self.fc_decode = nn.Linear(latent_dim, args.vocab_size * (args.image_size // 2) * (args.image_size // 2))
+        
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(args.vocab_size, 64, kernel_size=3, stride=1, padding=1),  # [B, 64, H/2, W/2]
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 16, kernel_size=3, stride=1, padding=1),  # [B, 16, H/2, W/2]
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, args.channels, kernel_size=3, stride=2, padding=1, output_padding=1),  # [B, channels, H, W]
+            nn.Sigmoid()
+        )
+
+    def encode(self, x):
+        h = self.encoder(x)
+        h = h.view(h.size(0), -1)
+        mu = self.fc_mu(h)
+        logvar = self.fc_logvar(h)
+        return mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    def decode(self, z):
+        h = self.fc_decode(z)
+        h = h.view(h.size(0), self.args.vocab_size, self.args.image_size // 2, self.args.image_size // 2)
+        return self.decoder(h)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z)
+
+

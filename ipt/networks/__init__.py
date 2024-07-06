@@ -4,7 +4,7 @@ from ipt.networks.iptresnet import IPTResnet
 from ipt.networks.decoder import Decoder
 from ipt.networks.aptnet import APTNet
 
-from ipt.networks.cnns import Dummy, SmallClassifier, AptSizeClassifier
+from ipt.networks.cnns import Dummy, SmallClassifier, AptSizeClassifier, VAENet, smallVAENet
 
 
 def build_ipt_model(args):
