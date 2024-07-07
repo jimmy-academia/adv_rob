@@ -39,8 +39,7 @@ def square_attack(args, primary, model, labels, random=False):
         return adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
 
 
-def auto_attack(args, primary, model, labels, random=False):
-    _version = 'plus' if random else 'standard' #'rand'
+def auto_attack(args, primary, model, labels, _version='standard'):
     adversary = AutoAttack(model, norm='Linf', eps=args.eps, version=_version, verbose=False, device=args.device)
     return adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
 

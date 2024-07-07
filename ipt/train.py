@@ -1,4 +1,6 @@
 import copy
+import time
+
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -176,6 +178,70 @@ def train_classifier(args, iptresnet, train_loader):
             accuracy = float(cor/tot)
             train_pbar.set_postfix(l=f'{float(loss):.4f}', acc=f'{accuracy:.3f}')
 
+
+
+
+def do_adversarial_similarity_training(args, model, train_loader, test_loader, adv_attacks, atk_names):
+    # assume: model.iptnet vs model.classifier
+    Record = defaultdict(list)
+
+    optimizer = torch.optim.Adam(model.iptnet.parameters(), lr=1e-3)
+    opt_class = torch.optim.Adam(model.classifier.parameters(), lr=1e-3)
+
+    elapsed_time = 0
+    for epoch in range(args.num_epochs):
+        start = time.time()    
+        pbar = tqdm(train_loader, ncols=90, desc='ast:pretrain')
+        for images, labels in pbar:
+            images = images.to(args.device)
+            labels = labels.to(args.device)
+            adv_images = pgd_attack(args, images, model.iptnet, images, True)
+            output = model.iptnet(adv_images)
+            mseloss = nn.MSELoss()(output, images)
+            optimizer.zero_grad()
+            mseloss.backward()
+            optimizer.step()
+            pbar.set_postfix(loss=mseloss.item())
+
+        pbar = tqdm(train_loader, ncols=88, desc='adv/sim training')
+        
+        for images, labels in pbar:
+            images, labels = images.to(args.device), labels.to(args.device)
+            adv_images = pgd_attack(args, images, model, labels, False)
+            output = model.iptnet(adv_images)
+
+            mseloss = nn.MSELoss()(output, images)
+            optimizer.zero_grad()
+            mseloss.backward()
+            optimizer.step()
+
+            cl_output = model.classifier(output.detach())
+            cl_loss = nn.CrossEntropyLoss()(cl_output, labels)
+            opt_class.zero_grad()
+            cl_loss.backward()
+            opt_class.step()
+
+            adv_acc = (cl_output.argmax(dim=1) == labels).sum() / len(labels)
+            pbar.set_postfix({'adv_acc': float(adv_acc)})
+
+        elapsed_time += time.time() - start
+        Record['epoch'].append(epoch)
+        Record['elapsed_time'].append(elapsed_time)
+        Record = run_tests(args, model, test_loader, Record, adv_attacks, atk_names)
+        
+    return Record
+
+def run_tests(args, model, test_loader, Record, adv_attacks, atk_names):
+
+    for attack, atk_name in zip(adv_attacks, atk_names):
+        correct, adv_correct, total = test_attack(args, model, test_loader, attack)
+        print(f'[{atk_name}] test acc: {correct/total:.4f}, adv acc: {adv_correct/total:.4f}...')
+        Record[f'{atk_name}_test_acc'].append(correct/total)
+        Record[f'{atk_name}_adv_acc'].append(adv_correct/total)
+
+    return Record
+
+
 def test_attack(args, model, test_loader, adv_perturb, fast=True):
     total = correct = adv_correct = 0
     model.eval()
@@ -194,8 +260,6 @@ def test_attack(args, model, test_loader, adv_perturb, fast=True):
         if fast:
             break
     return correct, adv_correct, total
-
-
 
 # def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
 #     total = correct = adv_correct = 0
