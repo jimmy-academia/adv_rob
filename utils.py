@@ -1,5 +1,8 @@
+import sys
 import code 
 import inspect
+import traceback
+
 
 import os
 import random
@@ -21,6 +24,7 @@ def set_seeds(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
+
 def check():
     current_frame = inspect.currentframe()
     caller_frame = current_frame.f_back
@@ -39,6 +43,110 @@ def check():
     print(f"--------->> at line {caller_line}")
 
     code.interact(local=dict(globals(), **caller_locals))
+
+
+original_excepthook = sys.excepthook
+
+
+class FrameNavigator:
+    def __init__(self, frames):
+        self.frames = frames
+        self.current_frame_index = 0
+        self.update_context(self.current_frame_index)
+
+    def update_context(self, index):
+        self.current_frame_index = index
+        frame = self.frames[index]
+        self.locals = frame.f_locals.copy()
+        self.globals = frame.f_globals
+        frame_info = inspect.getframeinfo(frame)
+        self.filename = frame_info.filename
+        self.lineno = frame_info.lineno
+        print(f"Switched to frame {index}: {self.filename} at line {self.lineno}")
+        # Update interactive console locals
+        self.update_interactive_locals()
+
+    def update_interactive_locals(self):
+        # Update the locals dictionary in the interactive console
+        interactive_locals.clear()
+        interactive_locals.update(self.locals)
+        interactive_locals.update({'navigator': self, 'list_vars': list_vars})
+
+    def next_frame(self):
+        if self.current_frame_index < len(self.frames) - 1:
+            self.update_context(self.current_frame_index + 1)
+        else:
+            print("Already at the newest frame")
+
+    def prev_frame(self):
+        if self.current_frame_index > 0:
+            self.update_context(self.current_frame_index - 1)
+        else:
+            print("Already at the oldest frame")
+
+def is_user_code(frame):
+    # Check if the frame is from user code by comparing the file path
+    filename = frame.f_globals["__file__"]
+    return not filename.startswith(sys.prefix)
+
+def list_vars():
+    print("Local variables in the current frame:")
+    for var, val in interactive_locals.items():
+        print(f"{var}: {val}")
+
+def syscheck():
+    # Restore the original excepthook
+    sys.excepthook = original_excepthook
+
+    # Get the last traceback
+    tb = sys.last_traceback
+    user_frames = []
+
+    # Collect all user frames
+    while tb:
+        frame = tb.tb_frame
+        if is_user_code(frame):
+            user_frames.append(frame)
+        tb = tb.tb_next
+
+    if not user_frames:
+        print("No user frames found")
+        return
+
+    global interactive_locals
+    interactive_locals = {}
+
+    navigator = FrameNavigator(user_frames)
+
+    # Interactive console with frame navigation
+    banner = (
+        "\n"
+        "=== Interactive mode ===\n"
+        "Use 'navigator.next_frame()' to go to the next frame, "
+        "'navigator.prev_frame()' to go to the previous frame.\n"
+        "Use 'list_vars()' to list local variables in the current frame.\n"
+        "Local variables of the current frame are accessible.\n"
+    )
+
+    def interact():
+        navigator.update_interactive_locals()
+        code.interact(banner, local=interactive_locals)
+
+    interact()
+
+def custom_excepthook(exctype, value, tb):
+    if exctype == KeyboardInterrupt:
+        print("KeyboardInterrupt caught. Exiting cleanly.")
+        sys.exit(0)
+    else:
+        traceback.print_exception(exctype, value, tb)
+        sys.last_traceback = tb  # Save the last traceback to use in check()
+        syscheck()
+
+
+def debug_mode():
+    sys.excepthook = custom_excepthook
+
 
 # read from file
 def readf(path):

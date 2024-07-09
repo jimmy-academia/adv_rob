@@ -44,6 +44,11 @@ def auto_attack(args, primary, model, labels, _version='standard'):
     return adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
 
 
+def auto_attack_dict(args, primary, model, labels, _version='standard'):
+    adversary = AutoAttack(model, norm='Linf', eps=args.eps, version=_version, verbose=False, device=args.device)
+    return adversary.run_standard_evaluation_individual(primary, labels, bs=primary.size(0))
+
+
 def patch_square_attack(args, primary, model, labels):
     patch_square_attacker = PatchSquareAttack(model, norm='Linf', eps=args.eps, device=args.device)
     return patch_square_attacker.perturb(primary, labels)

@@ -15,7 +15,7 @@ from ipt.data import get_dataset, get_dataloader
 from ipt.train import run_tests
 
 from config import default_arguments
-from utils import dumpj, loadj, check
+from utils import dumpj, loadj, check, debug_mode
 
 class StackedAPTNet(nn.Module):
     def __init__(self, args):
@@ -73,12 +73,6 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
 
     opt_apt1 = torch.optim.Adam(model.apt1.parameters(), lr=1e-3)
     opt_apt2 = torch.optim.Adam(model.apt2.parameters(), lr=1e-3)
-    # other_params = list(model.conv1.parameters()) + \
-    #             list(model.conv2.parameters()) + \
-    #             list(model.conv3.parameters()) + \
-    #             list(model.pool.parameters()) + \
-    #             list(model.flatten.parameters()) + \
-    #             list(model.linear.parameters())
     all_params = set(model.parameters())
     apt1_params = set(model.apt1.parameters())
     apt2_params = set(model.apt2.parameters())
@@ -128,7 +122,7 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
         for images, labels in pbar:
             images = images.to(args.device)
             labels = labels.to(args.device)
-            standard = model.before2(images)
+            standard = model.before2(images).detach()
             adv_images = pgd_attack(args, images, model.with2, standard, True)
             output = model.with2(adv_images)
             mseloss = nn.MSELoss()(output, standard)
@@ -142,7 +136,7 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
         for images, labels in pbar:
             images, labels = images.to(args.device), labels.to(args.device)
             adv_images = pgd_attack(args, images, model, labels, False)
-            standard = model.before2(images)
+            standard = model.before2(images).detach()
             output = model.with2(adv_images)
 
             mseloss = nn.MSELoss()(output, standard)
@@ -163,7 +157,7 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
         elapsed_time += time.time() - start
         Record['epoch'].append(epoch)
         Record['elapsed_time'].append(elapsed_time)
-        Record = run_tests(args, model, test_loader, adv_attacks, atk_names)
+        Record = run_tests(args, model, test_loader, Record, adv_attacks, atk_names)
         
     return Record
 
@@ -187,6 +181,7 @@ def main():
     print('Done!')
 
 if __name__ == '__main__':
+    debug_mode()
     main()
 
     # model = BasicBlock(3, 16, 2)

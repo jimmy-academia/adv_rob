@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from utils import check
 
 class APTNet(nn.Module):
     def __init__(self, args, _layers=[16, 64]):
@@ -14,7 +15,8 @@ class APTNet(nn.Module):
         self.conv_layers = []
         in_size = args.channels
         for out_size in _layers:
-            self.conv_layers.append(nn.Conv2d(in_size, out_size, kernel_size=3, stride=2, padding=1))
+            s = 2 if len(self.conv_layers) == 0 else 1
+            self.conv_layers.append(nn.Conv2d(in_size, out_size, kernel_size=3, stride=s, padding=1))
             self.conv_layers.append(nn.ReLU())
             in_size = out_size
         self.conv_layers.append(nn.Conv2d(in_size, args.vocab_size, kernel_size=1, stride=1))
