@@ -70,19 +70,27 @@ class FrameNavigator:
         # Update the locals dictionary in the interactive console
         interactive_locals.clear()
         interactive_locals.update(self.locals)
-        interactive_locals.update({'navigator': self, 'list_vars': list_vars})
+        interactive_locals.update({'nv': self, 'ls': list_vars})
 
-    def next_frame(self):
+    def next(self):
         if self.current_frame_index < len(self.frames) - 1:
             self.update_context(self.current_frame_index + 1)
         else:
             print("Already at the newest frame")
 
-    def prev_frame(self):
+    def prev(self):
         if self.current_frame_index > 0:
             self.update_context(self.current_frame_index - 1)
         else:
             print("Already at the oldest frame")
+
+    def list(self):
+        print("Frames:")
+        for i, frame in enumerate(self.frames):
+            frame_info = inspect.getframeinfo(frame)
+            prefix = "* " if i == self.current_frame_index else ""
+            print(f"{prefix}frame {i}: {frame_info.filename} at line {frame_info.lineno}")
+
 
 def is_user_code(frame):
     # Check if the frame is from user code by comparing the file path
@@ -92,7 +100,8 @@ def is_user_code(frame):
 def list_vars():
     print("Local variables in the current frame:")
     for var, val in interactive_locals.items():
-        print(f"{var}: {val}")
+        if not var.startswith("__") and not callable(val):
+            print(f"{var}: {val}")
 
 def syscheck():
     # Restore the original excepthook
@@ -122,11 +131,13 @@ def syscheck():
     banner = (
         "\n"
         "=== Interactive mode ===\n"
-        "Use 'navigator.next_frame()' to go to the next frame, "
-        "'navigator.prev_frame()' to go to the previous frame.\n"
-        "Use 'list_vars()' to list local variables in the current frame.\n"
+        "Use 'nv.next()' to go to the next frame, "
+        "Use 'nv.prev()' to go to the previous frame.\n"
+        "Use 'nv.list()' to list all frames.\n"
+        "Use 'ls()' to list local variables in the current frame.\n"
         "Local variables of the current frame are accessible.\n"
     )
+
 
     def interact():
         navigator.update_interactive_locals()

@@ -22,7 +22,9 @@ class APTNet(nn.Module):
         self.conv_layers.append(nn.Conv2d(in_size, args.vocab_size, kernel_size=1, stride=1))
         self.conv_layers = nn.Sequential(*self.conv_layers)
 
-        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)
+        # bs, 3, 32, 32 => bs, T, 16, 16
+
+        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
         self.softmax = nn.Softmax(-1)
         self.relu = nn.ReLU()
 
@@ -58,10 +60,10 @@ class APTNet(nn.Module):
         return x
 
     def forward(self, x):
-        x = self.conv_layers(x)
-        x = x.permute(0, 2,3,1)
-        x = x.view(x.size(0), -1, x.size(-1))
-        x = torch.matmul(x, self.embedding.weight)
-        x = self.inverse(x)
+        x = self.conv_layers(x)     # bs, T, 16, 16
+        x = x.permute(0, 2,3,1)     # bs, 16, 16, T
+        x = x.view(x.size(0), -1, x.size(-1))   # bs, 256, T
+        x = torch.matmul(x, self.embedding.weight)  # bs, 256, 12
+        x = self.inverse(x)         # bs, 3, 32, 32
         return x
     

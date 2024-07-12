@@ -22,7 +22,7 @@ def pgd_attack(args, primary, model, labels, sim=False):
         else:
             loss = nn.CrossEntropyLoss()(output, labels)
         
-        loss.backward()
+        loss.backward()  # loss: image - model -> (label) - lossfunc -> value
         grad = variable.grad.data
         variable = variable + args.eps * torch.sign(grad)
         variable = variable.clamp(primary - args.eps, primary + args.eps)
