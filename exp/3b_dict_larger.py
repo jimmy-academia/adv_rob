@@ -141,37 +141,37 @@ def dict_adversarial_similarity_training(args, model, train_loader, test_loader,
     for epoch in range(args.num_epochs):
         start = time.time()    
         pbar = tqdm(train_loader, ncols=90, desc='ast:pretrain')
-        # for images, labels in pbar:
-        #     images = images.to(args.device)
-        #     labels = labels.to(args.device)
-        #     adv_images = pgd_attack(args, images, model.iptnet, images, True)
-        #     output = model.iptnet(adv_images)
-        #     mseloss = nn.MSELoss()(output, images)
-        #     optimizer.zero_grad()
-        #     mseloss.backward()
-        #     optimizer.step()
-        #     pbar.set_postfix(loss=mseloss.item())
+        for images, labels in pbar:
+            images = images.to(args.device)
+            labels = labels.to(args.device)
+            adv_images = pgd_attack(args, images, model.iptnet, images, True)
+            output = model.iptnet(adv_images)
+            mseloss = nn.MSELoss()(output, images)
+            optimizer.zero_grad()
+            mseloss.backward()
+            optimizer.step()
+            pbar.set_postfix(loss=mseloss.item())
 
-        # pbar = tqdm(train_loader, ncols=88, desc='adv/sim training')
+        pbar = tqdm(train_loader, ncols=88, desc='adv/sim training')
         
-        # for images, labels in pbar:
-        #     images, labels = images.to(args.device), labels.to(args.device)
-        #     adv_images = pgd_attack(args, images, model, labels, False)
-        #     output = model.iptnet(adv_images)
+        for images, labels in pbar:
+            images, labels = images.to(args.device), labels.to(args.device)
+            adv_images = pgd_attack(args, images, model, labels, False)
+            output = model.iptnet(adv_images)
 
-        #     mseloss = nn.MSELoss()(output, images)
-        #     optimizer.zero_grad()
-        #     mseloss.backward()
-        #     optimizer.step()
+            mseloss = nn.MSELoss()(output, images)
+            optimizer.zero_grad()
+            mseloss.backward()
+            optimizer.step()
 
-        #     cl_output = model.classifier(output.detach())
-        #     cl_loss = nn.CrossEntropyLoss()(cl_output, labels)
-        #     opt_class.zero_grad()
-        #     cl_loss.backward()
-        #     opt_class.step()
+            cl_output = model.classifier(output.detach())
+            cl_loss = nn.CrossEntropyLoss()(cl_output, labels)
+            opt_class.zero_grad()
+            cl_loss.backward()
+            opt_class.step()
 
-        #     adv_acc = (cl_output.argmax(dim=1) == labels).sum() / len(labels)
-        #     pbar.set_postfix({'adv_acc': float(adv_acc)})
+            adv_acc = (cl_output.argmax(dim=1) == labels).sum() / len(labels)
+            pbar.set_postfix({'adv_acc': float(adv_acc)})
 
         elapsed_time += time.time() - start
         Record['epoch'].append(epoch)
