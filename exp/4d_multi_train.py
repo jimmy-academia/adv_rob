@@ -128,11 +128,12 @@ class MultiStackedAPTNet(nn.Module):
 def do_adversarial_similarity_training(args, model, train_loader, test_loader, adv_attacks, atk_names):
     Record = defaultdict(list)
     
+    normal_optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     # Create optimizers for each APTNet and the rest of the model
     optimizers = []
     for i in range(model.num_aptnets):
         optimizers.append(torch.optim.Adam(model.aptnets[i].parameters(), lr=1e-3))
-    
+
 
     # Create optimizers for the rest of the model parameters
     all_params = set(model.parameters())
@@ -146,6 +147,17 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
     elapsed_time = 0
     for epoch in range(args.num_epochs):
         start = time.time()
+        pbar = tqdm(train_loader, ncols=90, desc=f'normal training {epoch}')
+        model.train()
+        for images, labels in pbar:
+            images = images.to(args.device)
+            labels = labels.to(args.device)
+            output = model(images)
+            loss = nn.CrossEntropyLoss()(output, labels)
+            normal_optimizer.zero_grad()
+            loss.backward()
+            normal_optimizer.step()
+            pbar.set_postfix(loss=float(loss.item()), acc=float((output.argmax(dim=1) == labels).sum() / len(labels)))
 
         for n in range(model.num_aptnets):
             # Pretraining phase
@@ -205,40 +217,33 @@ def do_adversarial_similarity_training(args, model, train_loader, test_loader, a
     
     return Record
 
-
-# # Usage example
-# args = SimpleNamespace(channels=3, image_size=32, patch_size=4, vocab_size=1000, num_classes=10)
-# model = MultiStackedAPTNet(args, num_aptnets=3)
-# model.generate_methods()
-
-# # Now you can use the dynamically generated methods
-# x = torch.randn(1, 3, 32, 32)
-# output = model(x)
-# output_with2 = model.with2(x)
-# output_after1 = model.after1(x)
-
 def main():
     debug_mode()
     args = default_arguments('cifar10')
     args.num_epochs = 5
-    args.num_aptnets = 5
-    args.ckpt_dir = Path('ckpt/4c_multi_stacked')
-    args.ckpt_dir.mkdir(parents=True, exist_ok=True)
+    args.vocab_size = 32
+    for num_aptnets in range(1,10):
+        print(f'==== Number of APTNets: {num_aptnets} =====')
+        args.num_aptnets = num_aptnets
+        args.ckpt_dir = Path('ckpt/4d_multi_train')
+        args.ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-    train_set, test_set = get_dataset(args.dataset)
-    train_loader, test_loader = get_dataloader(train_set, test_set, args.batch_size)
+        train_set, test_set = get_dataset(args.dataset)
+        train_loader, test_loader = get_dataloader(train_set, test_set, args.batch_size)
 
-    record_path = args.ckpt_dir / 'result.json'
-    auto_attack_rand = partial(auto_attack, _version='plus')
+        record_path = args.ckpt_dir / f'apt{num_aptnets}_result.json'
+        auto_attack_rand = partial(auto_attack, _version='plus')
 
-    model = MultiStackedAPTNet(args).to(args.device)
-    print(f"Number of trainable parameters in apt model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
-    
-    
-    ast_record = do_adversarial_similarity_training(args, model, train_loader, test_loader, [pgd_attack, auto_attack_rand], ['pgd', 'autoplus'])
-    dumpj(ast_record, record_path)
-    print('Done!')
+        model = MultiStackedAPTNet(args).to(args.device)
+        print(f"Number of trainable parameters in apt model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+        
+        ast_record = do_adversarial_similarity_training(args, model, train_loader, test_loader, [pgd_attack, auto_attack_rand], ['pgd', 'autoplus'])
+        dumpj(ast_record, record_path)
+        print('Done!')
 
 
 if __name__ == '__main__':
     main()
+
+    # print(model(torch.rand(5, 3, 32, 32).to(args.device)).shape)
+    # print('!!!!!!!!!')
