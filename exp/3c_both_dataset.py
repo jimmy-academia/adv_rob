@@ -67,7 +67,7 @@ class BasicBlock(nn.Module):
 
 
 class LargeAPTNet(nn.Module):
-    def __init__(self, args, _layers = [16, 64]):
+    def __init__(self, args, _layers = [64, 128]):
         # in_size, out_size, hidden_layers
         # in_size: args.channels
         # out_size: args.vocab_size
@@ -234,25 +234,28 @@ def plot_records(record_paths, labels, x_axis='epoch'):
     plt.savefig(f'compare_ast_at_{x_axis}.jpg')
 
 def main():
-    args = default_arguments('mnist')
-    args.num_epochs = 20
-    args.ckpt_dir = Path('ckpt/3b_dict_larger')
-    args.ckpt_dir.mkdir(parents=True, exist_ok=True)
+    for vocab_size in [1024, 512, 256, 2048]:
+        for dataset in ['mnist', 'cifar10']:
+            args = default_arguments('mnist')
+            args.vocab_size = vocab_size
+            args.num_epochs = 10
+            args.ckpt_dir = Path('ckpt/3c_both_dataset')
+            args.ckpt_dir.mkdir(parents=True, exist_ok=True)
 
-    train_set, test_set = get_dataset(args.dataset)
-    train_loader, test_loader = get_dataloader(train_set, test_set, args.batch_size)
-    
-    record_path = args.ckpt_dir / 'apt_ast.json'
-    autoplus = partial(auto_attack_dict, _version='plus')
-
-    aptnet = LargeAPTNet(args)
-    classifier = SmallClassifier(args)
-    model = Dummy(aptnet, classifier).to(args.device)
-    print(f"Number of trainable parameters in apt model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+            train_set, test_set = get_dataset(args.dataset)
+            train_loader, test_loader = get_dataloader(train_set, test_set, args.batch_size)
         
-    ast_record = dict_adversarial_similarity_training(args, model, train_loader, test_loader, autoplus)
-    dumpj(ast_record, record_path)
-    print('Done!')
+            record_path = args.ckpt_dir / f'{dataset}_{vocab_size}_results.json'
+            autoplus = partial(auto_attack_dict, _version='plus')
+
+            aptnet = LargeAPTNet(args)
+            classifier = SmallClassifier(args)
+            model = Dummy(aptnet, classifier).to(args.device)
+            print(f"Number of trainable parameters in apt model: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+                
+            ast_record = dict_adversarial_similarity_training(args, model, train_loader, test_loader, autoplus)
+            dumpj(ast_record, record_path)
+            print('Done!')
 
 if __name__ == '__main__':
     main()
