@@ -8,6 +8,7 @@ from config import empty_arg
 from train import test_attack
 from utils import dumpj
 
+import time
 import torch
 import torchvision
 
@@ -44,14 +45,20 @@ def main(args):
 			# 	print(resnet(images).shape)
 			# 	print(f'{dataset} with size {size} good to go')
 			# 	break
-			results = {'train_acc': [], 'test_acc': [], 'adv_acc': []}
-			for iter in tqdm(range(100), desc=f'{dataset} with size {size}', ncols=88):
+			results = {'train_acc': [], 'test_acc': [], 'adv_acc': [], 'train_time': []}
+			pbar = tqdm(range(20), desc=f'{dataset} with size {size}', ncols=88)
+			train_time = 0
+			for iter in pbar:
+				start = time.time()
 				train_acc = adversarial_training(args, resnet, trainloader)
+				train_time += time.time() - start
 				correct, adv_correct, total = test_attack(args, resnet, testloader, pgd_attack)
 				test_acc, adv_acc = correct/total, adv_correct/total
 				results['train_acc'].append(train_acc)
 				results['test_acc'].append(test_acc)
 				results['adv_acc'].append(adv_acc)
+				results['train_time'].append(train_time)
+				pbar.set_postfix({'train': train_acc, 'test': test_acc, 'adv': adv_acc})
 
 			Results[dataset][size] = results
 			dumpj(Results, result_path)

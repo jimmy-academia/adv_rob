@@ -7,7 +7,7 @@ def adversarial_training(args, model, train_loader):
     model.to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.advtrain_lr)
 
-    pbar = tqdm(train_loader, ncols=88, desc='adversarial training')
+    pbar = tqdm(train_loader, ncols=88, desc='adversarial training', leave=False)
     correct = total = 0
     for images, labels in pbar:
         images, labels = images.to(args.device), labels.to(args.device)
