@@ -1,12 +1,6 @@
 import torch
 import torch.nn as nn
-
 from autoattack import AutoAttack
-from ipt.attacks.flat_square import flat_square_attack
-from ipt.attacks.patch_square import PatchSquareAttack
-
-from utils import check
-
 
 def pgd_attack(args, primary, model, labels, sim=False):
     secondary = primary + args.eps * (1- 2*torch.rand_like(primary))

@@ -1,6 +1,10 @@
 import torch
 from pathlib import Path
 import argparse
+from types import SimpleNamespace
+
+def empty_arg():
+    return SimpleNamespace()
 
 
 def config_arguments(config):
@@ -63,5 +67,3 @@ def default_arguments(dataset):
     args.attack_iters = 100
     return args
 
-
-    

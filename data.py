@@ -9,9 +9,9 @@ from tqdm import tqdm
 Rootdir = readf('cache/rootdir')
 # Import MNIST dataset
 
-def get_dataset(name='cifar10'):
+def get_dataset(name='cifar10', size=32):
     # channels = 1 if name == 'mnist' else 3 transforms.Normalize((0.5,)*channels, (0.5,)*channels)
-    _transf = transforms.Compose([transforms.Resize(32), transforms.ToTensor()])
+    _transf = transforms.Compose([transforms.Resize(size), transforms.ToTensor()])
     if name == 'mnist':
         trainset = torchvision.datasets.MNIST(root=Rootdir, train=True, download=True, transform=_transf)
         testset = torchvision.datasets.MNIST(root=Rootdir, train=False, download=True, transform=_transf)

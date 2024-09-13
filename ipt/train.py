@@ -10,25 +10,7 @@ from collections import defaultdict
 from ipt.attacks import patch_square_attack, pgd_attack
 from ipt.data import get_dataloader
 
-def adversarial_training(args, iptresnet, train_loader):
-    iptresnet.train()
-    iptresnet.to(args.device)
-    optimizer = torch.optim.Adam(iptresnet.tokenizer.parameters(), lr=args.config['train']['lr'])
 
-    iter_ = 0
-    pbar = tqdm(train_loader, ncols=88, desc='adversarial training')
-    for images, labels in pbar:
-        iter_ += 1
-        if iter_ > 10:
-            break
-        images, labels = images.to(args.device), labels.to(args.device)
-        adv_images = pgd_attack(args, images, iptresnet, labels)
-        output = iptresnet(adv_images)
-        loss = torch.nn.CrossEntropyLoss()(output, labels)
-        loss.backward()
-        optimizer.step()
-        pbar.set_postfix({'acc': (output.argmax(dim=1) == labels).sum()/len(output)})
-        
 def stable_training(args, iptresnet, train_loader):
     iptresnet.train()
     iptresnet.to(args.device)
@@ -242,7 +224,7 @@ def run_tests(args, model, test_loader, Record, adv_attacks, atk_names):
     return Record
 
 
-def test_attack(args, model, test_loader, adv_perturb, fast=True):
+def test_attack(args, model, test_loader, adv_perturb):
     total = correct = adv_correct = 0
     model.eval()
     pbar = tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False)
@@ -256,9 +238,6 @@ def test_attack(args, model, test_loader, adv_perturb, fast=True):
         adv_pred = model(adv_images)
         adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
-
-        if fast:
-            break
     return correct, adv_correct, total
 
 # def test_attack(args, iptresnet, test_loader, adv_perturb, fast=False):
