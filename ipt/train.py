@@ -138,29 +138,6 @@ def adv_patch_training(args, iptresnet, train_loader, attack_type='pgd'):
         pbar.set_postfix({'acc': f'{adv_acc:.2f}', 'macc': adv_mean, 'l': adv_loss.item()})
 
 
-def train_classifier(args, iptresnet, train_loader):
-    iptresnet.train()
-    optimizer = torch.optim.Adam(iptresnet.classifier.parameters(), lr=0.001)
-    train_pbar = tqdm(range(args.config['train']['train_epochs']), ncols=90, desc='train classifier')
-
-    for i in train_pbar:
-        cor = tot = 0
-        for images, labels in train_loader:
-
-            images = images.to(args.device)
-            labels = labels.to(args.device)
-            optimizer.zero_grad()
-            output = iptresnet(images)
-
-            loss = torch.nn.CrossEntropyLoss()(output, labels)
-            loss.backward()
-            optimizer.step()
-            cor += (output.argmax(dim=1) == labels).sum()
-            tot += len(labels)
-            accuracy = float(cor/tot)
-            train_pbar.set_postfix(l=f'{float(loss):.4f}', acc=f'{accuracy:.3f}')
-
-
 
 
 def do_adversarial_similarity_training(args, model, train_loader, test_loader, adv_attacks, atk_names):

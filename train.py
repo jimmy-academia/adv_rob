@@ -1,3 +1,4 @@
+import torch
 from tqdm import tqdm
 
 def test_attack(args, model, test_loader, adv_perturb):
@@ -15,3 +16,23 @@ def test_attack(args, model, test_loader, adv_perturb):
         adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
     return correct, adv_correct, total
+
+def train_classifier(args, model, train_loader):
+    model.train()
+    model.to(args.device)
+    cor = tot = 0
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    for images, labels in train_loader:
+        images = images.to(args.device)
+        labels = labels.to(args.device)
+        optimizer.zero_grad()
+        output = model(images)
+
+        loss = torch.nn.CrossEntropyLoss()(output, labels)
+        loss.backward()
+        optimizer.step()
+        cor += (output.argmax(dim=1) == labels).sum()
+        tot += len(labels)
+    accuracy = float(cor/tot)
+    return accuracy    
+
