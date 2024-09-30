@@ -1,28 +1,17 @@
-# Image patch tokenization solves adversarial robustness
-> complete redevelopment 
+# efficient adversarial robustness
+
+## experiment log
+
+> insert new experiment log from the top
+
+### 2024-09-30
 
 
-## repo structure:
-- `config.py`: to process configurations
-- `ipt/`: code modules
-    - `data.py`: load dataset, form dataloaders
-    - `networks/`: model architecture designs
-    - `attacks/`: adversarial attack functions
-    - `train/`: training procedures
-    - `utils.py`: utility functions
-- `dev/`: experiment scripts
-    - e.g. `basic/`
-        - `mnist.py`
-        - `mnist1.yaml`
-        - `test2.yaml`
-- `bin/`: code backups (to be removed)
-- `(cache/)`: (git ignore) store info i.e. rootdir
-- `(ckpt/)`: (git ignore) store checkpoints
-    - e.g. `basic/`
-        - e.g. `test2/`
 
-usage example: `python dev/basic/mnist.py -c dev/basic/test2.yaml`
 
-## Current Agenda:
+### 2024-09-23
+- initialize new repository
 
-- test black box and other attacks
+[TODO]
+1. basic modualization... a) interchange training method (ipt and other at, quantization methods) vs models vs datasets vs attacks
+2. setup list of models and start 
