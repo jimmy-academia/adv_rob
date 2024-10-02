@@ -4,10 +4,22 @@
 
 > insert new experiment log from the top
 
+### 2024-10-02
+
+breakthrough this week!!!
+- -> running AT cifar10 mobilenet @solid [firsttime]
+- ... write/run AST cifar10 iptnet
+
 ### 2024-09-30
 
-
-
+[plan]
+- follow chatgpt and initialize code
+- test run 
+- start initial full run
+[result]
+- ...
+[TODO]
+- ...
 
 ### 2024-09-23
 - initialize new repository
