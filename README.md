@@ -7,8 +7,8 @@
 ### 2024-10-02
 
 breakthrough this week!!!
-- -> running AT cifar10 mobilenet @solid [firsttime]
-- ... write/run AST cifar10 iptnet
+- -> running AT cifar10 mobilenet @solid [firsttime] --> up to 0.35 adv acc
+- -> write/run AST cifar10 mobileapt patch 1
 
 ### 2024-09-30
 
