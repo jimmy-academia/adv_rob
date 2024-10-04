@@ -1,6 +1,6 @@
 from tqdm import tqdm
 from collections import defaultdict
-from attacks.default import pgd_attack
+from attacks.default import auto_attack # pgd_attack
 
 class Base_trainer:
     def __init__(self, args, model, train_loader, test_loader):
@@ -30,7 +30,7 @@ class Base_trainer:
 
     def eval(self):
         self.model.eval()
-        test_correct, adv_correct, test_total, tt_correct = self.test_attack(pgd_attack)
+        test_correct, adv_correct, test_total, tt_correct = self.test_attack(auto_attack)
         self.eval_records['epoch'].append(self.epoch)
         self.eval_records['test_acc'].append(test_correct/test_total)
         self.eval_records['test_time_acc'].append(tt_correct/test_total)
