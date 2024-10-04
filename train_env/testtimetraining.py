@@ -1,9 +1,14 @@
+import copy
 import time
 import torch
-import torch.nn.functional as F
 from tqdm import tqdm
+
 from attacks.default import pgd_attack
-from train_env.base_eval import Base_trainer, test_attack
+from train_env.base_eval import Base_trainer
+
+from datasets import rotate_batch
+from debug import *
+
 
 class TestTimeTrainer(Base_trainer):
     '''
@@ -12,7 +17,7 @@ class TestTimeTrainer(Base_trainer):
     def train(self):
         self.model.train()
         self.model.to(self.args.device)
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+        optimizer = torch.optim.Adam(self.model.parameters())
         
         self.runtime = 0
         for self.epoch in range(1, self.num_epochs+1):
@@ -43,5 +48,29 @@ class TestTimeTrainer(Base_trainer):
                 
             self.periodic_check()
             
+
+    def test_time_training(self, images):
+
+        model_copy = copy.deepcopy(self.model)
+        model_copy.to(self.args.device)
+
+        optimizer = torch.optim.Adam(list(model_copy.extractor.parameters()) + list(model_copy.rotatehead.parameters()))
+
+        for _iter in range(self.args.test_time_iter):
+            rotimages, rotlabels = rotate_batch(images, 'random')
+            rotimages, rotlabels = rotimages.to(self.args.device), rotlabels.to(self.args.device)
+
+            rotoutput = model_copy.sshead(rotimages)
+            loss = torch.nn.CrossEntropyLoss()(rotoutput, rotlabels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        return model_copy
+
+
+
+
+
 
 

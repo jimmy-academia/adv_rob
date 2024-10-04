@@ -26,18 +26,17 @@ def get_dataloader(args):
 
     if args.test_time == 'none':
         pass
-    elif args.test_time == 'corrupt': 
-        train_set = RotatedDataset(train_set)
-        test_set.data = prepare_corrupt_test_data(args)
-        rot_test_set = RotatedDataset(test_set, False)
+    elif args.test_time == 'standard':
+        if args.test_domain == 'corrupt':
+            train_set = RotatedDataset(train_set)
+            test_set.data = prepare_corrupt_test_data(args)
+            # rot_test_set = RotatedDataset(test_set, False)
     else:
         print('TODO: other test time settings')
         raise NotImplementedError
 
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
-    if args.test_time != 'none':
-        test_loader = [test_loader, DataLoader(rot_test_set, batch_size=args.batch_size, shuffle=False)]
 
     return train_loader, test_loader
 
@@ -52,27 +51,34 @@ def rotate_by_label(img, label):
         img = img.transpose(1, 2).flip(2) # rotate 270
     return img
 
-class RotatedDataset(Dataset):
-    def __init__(self, dataset, joint=True):
-        self.dataset = dataset
-        self.joint = joint  # Flag to differentiate between joint (original/rotated) and only rotated
+def rotate_batch(batch_data, flag):
+    length = len(batch_data)
+    if flag == 'random':
+        labels = torch.randint(4, (length,), dtype=torch.long)
+    elif flag == 'expand':
+        labels = torch.cat([torch.zeros(length, dtype=torch.long),
+                    torch.zeros(length, dtype=torch.long) + 1,
+                    torch.zeros(length, dtype=torch.long) + 2,
+                    torch.zeros(length, dtype=torch.long) + 3])
+        batch = batch.repeat((4,1,1,1))
+    else: # fixed on one
+        assert isinstance(label, int)
+        labels = torch.zeros((length,), dtype=torch.long) + label
 
+    rotated_batch_data = torch.stack([rotate_by_label(img, label) for img, label in zip(batch_data, labels)])
+    return rotated_batch_data, labels
+
+class RotatedDataset(Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
         img, label = self.dataset[index]
-        
-        if self.joint: 
-            # For training, return (img, label, rot_img, rot_label)
-            target_ssh = np.random.randint(0, 4)  
-            img_ssh = rotate_by_label(img, target_ssh)
-            return img, label, img_ssh, target_ssh
-        else:
-            # During testing, return only (rot_img, rot_label)
-            target_ssh = np.random.randint(0, 4)  
-            img_ssh = rotate_by_label(img, target_ssh)
-            return img_ssh, target_ssh
+        target_ssh = np.random.randint(0, 4)  
+        img_ssh = rotate_by_label(img, target_ssh)
+        return img, label, img_ssh, target_ssh
 
 def prepare_corrupt_test_data(args):
     dataset_mapping = {

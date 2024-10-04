@@ -7,10 +7,7 @@ class Base_trainer:
         self.args = args
         self.model = model
         self.train_loader = train_loader
-        if type(test_loader) == list:
-            self.test_loader, self.rot_test_loader = test_loader ## for TTT
-        else:
-            self.test_loader = test_loader
+        self.test_loader = test_loader
         
         ## training
         self.num_epochs = 100
@@ -32,30 +29,41 @@ class Base_trainer:
           f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item():.4f}')
 
     def eval(self):
-        test_correct, adv_correct, test_total = test_attack(self.args, self.model, self.test_loader, pgd_attack)
+        self.model.eval()
+        test_correct, adv_correct, test_total, tt_correct = self.test_attack(pgd_attack)
         self.eval_records['epoch'].append(self.epoch)
         self.eval_records['test_acc'].append(test_correct/test_total)
+        self.eval_records['test_time_acc'].append(tt_correct/test_total)
         self.eval_records['adv_acc'].append(adv_correct/test_total)
-        print(f'///eval/// Test_acc: {test_correct/test_total:.4f}, '
+        print(f'///eval/// Test_acc: {test_correct/test_total:.4f}, Test_time_acc: {tt_correct/test_total:.4f},'
           f'Adv_acc: {adv_correct/test_total:.4f}, ')
 
     def periodic_check(self):
         if self.epoch % self.args.eval_interval == 0 and self.epoch != self.num_epochs:
             self.eval()
+        self.model.train()
 
+    def test_attack(self, adv_perturb):
+        total = correct = tt_correct = adv_correct = 0
+        for images, labels in tqdm(self.test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
+            images = images.to(self.args.device); labels = labels.to(self.args.device)
+            pred = self.model(images)
+            correct += float((pred.argmax(dim=1) == labels).sum())
 
-def test_attack(args, model, test_loader, adv_perturb):
-    total = correct = adv_correct = 0
-    model.eval()
-    pbar = tqdm(test_loader, ncols=90, desc='test_attack', unit='batch', leave=False)
-    for images, labels in pbar:
-        images = images.to(args.device)
-        labels = labels.to(args.device)
-        pred = model(images)
-        correct += float((pred.argmax(dim=1) == labels).sum())
+            if self.args.test_time == 'none':
+                model_copy = self.model
+                tt_correct = correct
+            else:
+                if self.args.test_time == 'standard':
+                    model_copy = self.test_time_training(images)
+                elif self.args.test_time == 'online':
+                    raise NotImplementedError("implement online test time training")
+                tt_pred = model_copy(images)
+                tt_correct += float((tt_pred.argmax(dim=1) == labels).sum())
 
-        adv_images = adv_perturb(args, images, model, labels)
-        adv_pred = model(adv_images)
-        adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
-        total += len(labels)
-    return correct, adv_correct, total
+            adv_images = adv_perturb(self.args, images, model_copy, labels)
+            adv_pred = model_copy(adv_images)
+            adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
+            total += len(labels)
+
+        return correct, adv_correct, total, tt_correct

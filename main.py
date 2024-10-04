@@ -17,16 +17,20 @@ def set_arguments():
     parser.add_argument('--model', type=str, default='tttbasic', choices=['mobilenet', 'mobileapt', 'tttbasic'])
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10'])
     parser.add_argument('--train_env', type=str, default='TTT', choices=['AT', 'AST', 'TTT'])
-    parser.add_argument('--test_time', type=str, default='corrupt', choices=['none', 'corrupt'])
-    
+
+    # test time settings
+    parser.add_argument('--test_time', type=str, default='standard', choices=['none', 'standard', 'online'])
+    parser.add_argument('--test_domain', type=str, default='corrupt', choices=['iid', 'corrupt'])
+    parser.add_argument('--corrupt_level', type=int, default=5)
+    parser.add_argument('--corrupt_type', type=str, default='gaussian_noise', choices=common_corruptions+['all'])
+    parser.add_argument('--test_time_iter', type=int, default=3) # 1,3,10
+
     # detail train/attack decisions
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--eps', type=int, default=None)
     parser.add_argument('--attack_iters', type=int, default=50, help='iter for eval')
     parser.add_argument('--eval_interval', type=int, default=10, help='eval during train')
-    parser.add_argument('--corrupt_level', type=int, default=5)
-    parser.add_argument('--corrupt_type', type=str, default='gaussian_noise', choices=common_corruptions+['all'])
-
+    
     # detail model decisions (iptnet)
     parser.add_argument('--patch_size', type=int, default=1)
     parser.add_argument('--vocab_size', type=int, default=1024)

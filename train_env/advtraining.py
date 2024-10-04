@@ -1,9 +1,9 @@
 import time
 import torch
-import torch.nn.functional as F
 from tqdm import tqdm
+
 from attacks.default import pgd_attack
-from train_env.base_eval import Base_trainer, test_attack
+from train_env.base_eval import Base_trainer
 
 class AdversarialTrainer(Base_trainer):
     def train(self):
