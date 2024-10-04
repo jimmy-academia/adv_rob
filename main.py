@@ -32,8 +32,8 @@ def set_arguments():
     parser.add_argument('--eval_interval', type=int, default=10, help='eval during train')
     
     # detail model decisions (iptnet)
-    parser.add_argument('--patch_size', type=int, default=1)
-    parser.add_argument('--vocab_size', type=int, default=1024)
+    parser.add_argument('--patch_size', type=int, default=2)
+    parser.add_argument('--vocab_size', type=int, default=128)
     
     # train record path or notes 
     parser.add_argument('--ckpt', type=str, default='ckpt')
