@@ -7,7 +7,7 @@ def pgd_attack(args, primary, model, labels, sim=False, attack_iters=None):
     secondary = secondary.detach()
     secondary = secondary.clamp(0., 1.)
     if attack_iters is None:
-        attack_iters = args.attack_iters # custom evaluation, set to 7 for AT
+        attack_iters = args.attack_iters # custom evaluation
     for __ in range(attack_iters):
         variable = secondary.clone().detach().requires_grad_(True)
         output = model(variable)

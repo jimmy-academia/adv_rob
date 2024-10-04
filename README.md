@@ -27,3 +27,8 @@ breakthrough this week!!!
 [TODO]
 1. basic modualization... a) interchange training method (ipt and other at, quantization methods) vs models vs datasets vs attacks
 2. setup list of models and start 
+
+## Notes
+
+Evaluating the adversarial robustness of adaptive test-time defenses
+Uncovering Adversarial Risks of Test-Time Adaptation

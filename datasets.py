@@ -25,12 +25,15 @@ def get_dataloader(args):
     test_set = getattr(datasets, args.dataset.upper())(root=Rootdir, train=False, download=True, transform=data_transform)
 
     if args.test_time == 'none':
+        print(f'>>>> Dataset: Clean {args.dataset}, no test time augmentation')
         pass
     elif args.test_time == 'standard':
         if args.test_domain == 'corrupt':
-            train_set = RotatedDataset(train_set)
+            print(f'>>>> Dataset: {args.dataset} + {args.test_domain}')
+            if args.train_env == 'TTT':
+                # don't augment train set for TTAdv
+                train_set = RotatedDataset(train_set)
             test_set.data = prepare_corrupt_test_data(args)
-            # rot_test_set = RotatedDataset(test_set, False)
     else:
         print('TODO: other test time settings')
         raise NotImplementedError

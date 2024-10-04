@@ -10,7 +10,7 @@ class Base_trainer:
         self.test_loader = test_loader
         
         ## training
-        self.num_epochs = 100
+        self.num_epochs = 75
         ## logging
         self.epoch = 0
         self.training_records = defaultdict(list)
@@ -35,7 +35,7 @@ class Base_trainer:
         self.eval_records['test_acc'].append(test_correct/test_total)
         self.eval_records['test_time_acc'].append(tt_correct/test_total)
         self.eval_records['adv_acc'].append(adv_correct/test_total)
-        print(f'///eval/// Test_acc: {test_correct/test_total:.4f}, Test_time_acc: {tt_correct/test_total:.4f},'
+        print(f'///eval/// Test_acc: {test_correct/test_total:.4f}, Test_time_acc: {tt_correct/test_total:.4f}, '
           f'Adv_acc: {adv_correct/test_total:.4f}, ')
 
     def periodic_check(self):
@@ -44,15 +44,15 @@ class Base_trainer:
         self.model.train()
 
     def test_attack(self, adv_perturb):
-        total = correct = tt_correct = adv_correct = 0
+        total = test_correct = tt_correct = adv_correct = 0
         for images, labels in tqdm(self.test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
             images = images.to(self.args.device); labels = labels.to(self.args.device)
             pred = self.model(images)
-            correct += float((pred.argmax(dim=1) == labels).sum())
+            test_correct += float((pred.argmax(dim=1) == labels).sum())
 
             if self.args.test_time == 'none':
                 model_copy = self.model
-                tt_correct = correct
+                tt_correct = test_correct
             else:
                 if self.args.test_time == 'standard':
                     model_copy = self.test_time_training(images)
@@ -66,4 +66,4 @@ class Base_trainer:
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
             total += len(labels)
 
-        return correct, adv_correct, total, tt_correct
+        return test_correct, adv_correct, total, tt_correct

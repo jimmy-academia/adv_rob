@@ -17,8 +17,9 @@ class TestTimeTrainer(Base_trainer):
     def train(self):
         self.model.train()
         self.model.to(self.args.device)
-        optimizer = torch.optim.Adam(self.model.parameters())
-        
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [50, 65], gamma=0.1, last_epoch=-1)
+
         self.runtime = 0
         for self.epoch in range(1, self.num_epochs+1):
             self.total = self.correct = rotcorrect = 0
@@ -45,20 +46,26 @@ class TestTimeTrainer(Base_trainer):
                 pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item(), 'rotac': rotcorrect/self.total})
                 
             self.append_training_record()    
-                
             self.periodic_check()
-            
+            scheduler.step()
 
     def test_time_training(self, images):
 
         model_copy = copy.deepcopy(self.model)
         model_copy.to(self.args.device)
+        model_copy.eval()
+        optimizer = torch.optim.SGD(list(model_copy.extractor.parameters()) + list(model_copy.rotatehead.parameters()), lr=0.001)
 
-        optimizer = torch.optim.Adam(list(model_copy.extractor.parameters()) + list(model_copy.rotatehead.parameters()))
-
-        for _iter in range(self.args.test_time_iter):
+        # check confidence
+        # with torch.no_grad():
+        #     rotoutput = model_copy.sshead(images)
+        #     confidence = torch.nn.functional.softmax(rotoutput, dim=1)[:, 0]
+        #     mask = confidence < 0.9
+        
+        for __ in range(self.args.test_time_iter):
             rotimages, rotlabels = rotate_batch(images, 'random')
-            rotimages, rotlabels = rotimages.to(self.args.device), rotlabels.to(self.args.device)
+            rotlabels = rotlabels.to(self.args.device)
+            # rotimages, rotlabels = rotate_batch(images[mask], 'random')
 
             rotoutput = model_copy.sshead(rotimages)
             loss = torch.nn.CrossEntropyLoss()(rotoutput, rotlabels)
@@ -68,9 +75,43 @@ class TestTimeTrainer(Base_trainer):
 
         return model_copy
 
+class TestTimeAdvTrainer(TestTimeTrainer):
+    '''
+    implement Test-Time Training + Adversarial Training
+    '''
+    def train(self):
+        self.model.train()
+        self.model.to(self.args.device)
+        optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [50, 65], gamma=0.1, last_epoch=-1)
 
+        self.runtime = 0
+        for self.epoch in range(1, self.num_epochs+1):
+            self.total = self.correct = rotcorrect = 0
+            pbar = tqdm(self.train_loader, ncols=88, desc='TTAdv_training', leave=False)
 
+            for images, labels in pbar:
+                start_time = time.time()
+                images, labels = [x.to(self.args.device) for x in [images, labels]]
+                adv_images = pgd_attack(self.args, images, self.model, labels, attack_iters=7)
+                output = self.model(adv_images)
+                self.loss = torch.nn.CrossEntropyLoss()(output, labels)
+                
+                rotimages, rotlabels = rotate_batch(adv_images, 'random')
+                rotlabels = rotlabels.to(self.args.device)
+                rotoutput = self.model.sshead(rotimages)
+                self.loss += torch.nn.CrossEntropyLoss()(rotoutput, rotlabels)
 
-
-
-
+                optimizer.zero_grad()
+                self.loss.backward()
+                optimizer.step()
+                
+                self.runtime += time.time() - start_time
+                self.total += len(output)
+                rotcorrect += (output.argmax(dim=1) == labels).sum().item()
+                self.correct += (rotoutput.argmax(dim=1) == rotlabels).sum().item()
+                pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item(), 'rotac': rotcorrect/self.total})
+                
+            self.append_training_record()    
+            self.periodic_check()
+            scheduler.step()

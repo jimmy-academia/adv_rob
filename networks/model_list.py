@@ -2,7 +2,7 @@ import torch.nn as nn
 import torchvision.models as models
 
 from networks.iptnet import APTNet
-from networks.test_time import TTTBasicModel
+from networks.test_time import TTTBasicModel, ResNetCifar
 
 
 class Dummy(nn.Module):
@@ -28,3 +28,12 @@ def mobileapt(args):
 def tttbasic(args):
     model = TTTBasicModel(args)
     return model
+
+def resnetcifar(args):
+    model = ResNetCifar(depth=26, classes=args.num_classes)
+    return model
+
+def resnetcifarapt(args):
+    model = Dummy(APTNet(args), ResNetCifar(depth=26, classes=args.num_classes))
+    return model
+    

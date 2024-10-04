@@ -21,6 +21,7 @@ class AdversarialTrainer(Base_trainer):
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
                 adv_images = pgd_attack(self.args, images, self.model, labels, attack_iters=7)
 
+                
                 output = self.model(adv_images)
                 self.loss = torch.nn.CrossEntropyLoss()(output, labels)
                 
