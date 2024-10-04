@@ -65,5 +65,7 @@ class Base_trainer:
             adv_pred = model_copy(adv_images)
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
             total += len(labels)
+            
+            break # for auto attack
 
         return test_correct, adv_correct, total, tt_correct
