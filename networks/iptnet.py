@@ -1,13 +1,15 @@
 import torch
 import torch.nn as nn
 
+from networks.test_time import BasicBlock
+
 class APTNet(nn.Module):
     '''
     APTNet outputs (image_size // patch_size)^2 x vocab_size
     by processing the full image as a whole. 
     Alternative (IPTNet) is to process each patch individually.
     '''
-    def __init__(self, args, base_filter_channels=16):
+    def __init__(self, args, base_filter_channels=16, additional_layers=3):
         # in_dim, out_dim, hidden_layers
         # first in_dim: args.channels
         # last out_dim: args.vocab_size
@@ -24,14 +26,22 @@ class APTNet(nn.Module):
         in_dim = args.channels
         out_dim = base_filter_channels
 
+        # non_lin = nn.ReLU()
+        non_lin = nn.Sigmoid()
+
         while True:
             s = 2 if reduction_done < total_reduction else 1
             _layers.append(nn.Conv2d(in_dim, out_dim, kernel_size=3, stride=s, padding=1))
-            _layers.append(nn.ReLU())
+            _layers.append(non_lin)
             in_dim = out_dim
             out_dim = out_dim * 2
             reduction_done *= 2
-            if s == 1: # one more with stride = 1; can increase in future
+            if s == 1: 
+                # no size reduction and skip connection
+                for __ in range(additional_layers):
+                    _layers.append(BasicBlock(in_dim, in_dim, nn.BatchNorm2d, 1))
+                    # _layers.append(nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=1, padding=1))
+                    # _layers.append(non_lin)
                 break
 
         _layers.append(nn.Conv2d(in_dim, args.vocab_size, kernel_size=1, stride=1))
@@ -42,7 +52,7 @@ class APTNet(nn.Module):
 
         self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
         self.softmax = nn.Softmax(-1)
-        self.relu = nn.ReLU()
+        # self.relu = nn.ReLU()
 
         ## move patch from stack back to image
         self.inv_patcher = nn.ConvTranspose2d(self.patch_numel, args.channels, args.patch_size, args.patch_size)

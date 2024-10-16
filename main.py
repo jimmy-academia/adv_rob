@@ -39,10 +39,14 @@ def set_arguments():
     parser.add_argument('--ckpt', type=str, default='ckpt')
     parser.add_argument('--record_path', type=str, default=None)
     
-    
     args = parser.parse_args()
 
     # post parsing adjustments
+    args = post_process_args(args)
+
+    return args
+
+def post_process_args(args):
     set_seeds(args.seed)
     args.device = torch.device(f"cuda:{args.device}" if int(args.device) >= 0 and torch.cuda.is_available() else "cpu")
     args.ckpt = Path(args.ckpt)
@@ -64,7 +68,6 @@ def set_arguments():
     args.channels = 3
     args.image_size = 32 if args.dataset != 'imagenet' else 256
     args.num_classes = 10 if args.dataset not in ['imagenet', 'cifar100'] else (100 if args.dataset == 'cifar100' else 1000)
-
     return args
 
 def main():

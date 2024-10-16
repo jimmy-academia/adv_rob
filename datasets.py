@@ -13,7 +13,22 @@ transform_Normalization_dict = {
     'imagenet': transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 }
 
-def get_dataloader(args):
+cifar10_class_names = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
+
+def rev_norm_transform(dataset):
+    normalize = transform_Normalization_dict[dataset]
+    mean, std = normalize.mean, normalize.std
+    
+    mean = torch.tensor(mean)
+    std = torch.tensor(std)
+    
+    # Reverse transformation: first multiply by std and then add the mean
+    return transforms.Compose([
+        transforms.Normalize(mean=[0., 0., 0.], std=1/std),
+        transforms.Normalize(mean=-mean, std=[1., 1., 1.])
+    ])
+
+def get_dataloader(args): 
     data_transform = transforms.Compose([
         transforms.Resize(args.image_size),
         transforms.Grayscale(num_output_channels=3) if args.dataset == 'mnist' else (lambda x: x),

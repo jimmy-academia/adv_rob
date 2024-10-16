@@ -6,6 +6,7 @@ import os
 import random
 import torch
 import numpy as np
+from types import SimpleNamespace
 
 import re
 import json
@@ -91,3 +92,42 @@ def params_to_memory(params, precision=32):
 
     # Round the size and return the value with the appropriate unit
     return round(size), units[unit_index]
+
+# ==== arguments ==== #
+
+def default_args():
+    args = SimpleNamespace()
+    
+    # base
+    args.seed = 0
+    args.device = 0
+    
+    # main decisions
+    args.model = 'resnetcifarapt'  # Default value
+    args.dataset = 'cifar10'  # Default value
+    args.train_env = 'AST'  # Default value
+    
+    # test time settings
+    args.test_time = 'none'  # Default value
+    args.test_domain = 'corrupt'  # Default value
+    args.corrupt_level = 5  # Default value
+    args.corrupt_type = 'gaussian_noise'  # Default value
+    args.test_time_iter = 1  # Default value
+    
+    # detail train/attack decisions
+    args.batch_size = 128  # Default value
+    args.eps = None  # Default value
+    args.attack_iters = 50  # Default value
+    args.eval_interval = 1  # Default value
+    
+    # detail model decisions (iptnet)
+    args.patch_size = 1  # Default value
+    args.vocab_size = 128  # Default value
+    
+    # train record path or notes 
+    args.ckpt = 'ckpt'  # Default value
+    args.record_path = None  # Default value
+    
+    return args
+
+
