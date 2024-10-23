@@ -1,6 +1,7 @@
+import torch
 from tqdm import tqdm
 from collections import defaultdict
-from attacks.default import auto_attack # pgd_attack
+from attacks.default import auto_attack, pgd_attack
 
 class Base_trainer:
     def __init__(self, args, model, train_loader, test_loader):
@@ -30,7 +31,8 @@ class Base_trainer:
 
     def eval(self):
         self.model.eval()
-        test_correct, adv_correct, test_total, tt_correct = self.test_attack(auto_attack)
+        _attack = auto_attack if self.args.attack_type == 'aa' else pgd_attack
+        test_correct, adv_correct, test_total, tt_correct = self.test_attack(_attack)
         self.eval_records['epoch'].append(self.epoch)
         self.eval_records['test_acc'].append(test_correct/test_total)
         self.eval_records['test_time_acc'].append(tt_correct/test_total)
@@ -44,6 +46,7 @@ class Base_trainer:
         self.model.train()
 
     def test_attack(self, adv_perturb):
+        printed=False
         total = test_correct = tt_correct = adv_correct = 0
         for images, labels in tqdm(self.test_loader, ncols=90, desc='test_attack', unit='batch', leave=False):
             images = images.to(self.args.device); labels = labels.to(self.args.device)
@@ -66,6 +69,31 @@ class Base_trainer:
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
             total += len(labels)
             
-            break # for auto attack
+            if not printed:
+                correct_ind = pred.argmax(dim=1) == labels
+                incorrect_ind = adv_pred.argmax(dim=1) != labels
+                indices = torch.nonzero(incorrect_ind*correct_ind).squeeze()[:5]
+
+                from printer import display_images_in_grid
+                tmpfilepath = f'ckpt/tmp/{self.epoch}.jpg' 
+                testimages = images[indices]
+                test_recon = model_copy.iptnet(testimages)
+                advimages = adv_images[indices]
+                diffimages = advimages - testimages
+                adv_recons = model_copy.iptnet(advimages)
+
+                Plot_images = []
+                Plot_images.append([img.cpu() for img in testimages])
+                Plot_images.append([img.cpu() for img in test_recon])
+
+                Plot_images.append([img.cpu() for img in diffimages])
+
+                Plot_images.append([img.cpu() for img in advimages])
+                Plot_images.append([img.cpu() for img in adv_recons])
+                display_images_in_grid(tmpfilepath, Plot_images, None, self.args.dataset, 1) 
+                printed = True
+                
+            if self.args.attack_type == 'aa':
+                break 
 
         return test_correct, adv_correct, total, tt_correct

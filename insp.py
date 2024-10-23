@@ -8,7 +8,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from attacks.default import pgd_attack
+from attacks.default import pgd_attack, auto_attack
 from networks.iptnet import APTNet
 from networks.test_time import ResNetCifar
 from networks.model_list import Dummy
@@ -21,6 +21,8 @@ from utils import *
 
 def main():
 
+    print('### Phase 2, check attack')
+
     args = default_args()
     args = post_process_args(args)
     args.vocab_size = 8
@@ -28,9 +30,11 @@ def main():
 
     ckptdir = Path('ckpt')/'insp'
     ckptdir.mkdir(exist_ok=True)
-    filepath = ckptdir/'result.jpg'
-
+    result_train_path = ckptdir/'train_result.jpg'
+    result_attack_path = ckptdir/'attack_result.jpg'
     reverse_transform = rev_norm_transform(args.dataset) 
+
+    # === 
 
     model = Dummy(APTNet(args), ResNetCifar(depth=26, classes=args.num_classes))
 
@@ -41,17 +45,18 @@ def main():
     # additional information for iptnet
     if 'ipt' in args.model or 'apt' in args.model:
         print(f'>>>> ipt config: vocab_size={args.vocab_size}, patch_size={args.patch_size}')
-        print(model.iptnet)
-
-
+    
+    print()
+    print(model)
+    print()
+    print()
     train_loader, test_loader = get_dataloader(args)
 
     model.train()
     model.to(args.device)
     optimizer = torch.optim.Adam(model.iptnet.parameters(), lr=1e-3)
     opt_class = torch.optim.Adam(model.classifier.parameters(), lr=1e-3)
-        
-    print('### Phase 1, just check training')
+    
     ref_images, ref_labels = next(iter(train_loader))
     indices = random.sample(range(len(ref_images)), 5)
     
@@ -60,7 +65,6 @@ def main():
     Plot_images = [[img.clone() for img in ref_images]]
     ref_images = torch.stack(ref_images).to(args.device)
 
-    display_images_in_grid(filepath, Plot_images, Plot_labels, reverse_transform) 
 
     for epoch in range(20):
 
@@ -87,9 +91,6 @@ def main():
             pbar.set_postfix(loss=mseloss.item())
 
         recon_images = model.iptnet(ref_images)
-        Plot_images.append([rimg.cpu() for rimg in recon_images])
-
-        display_images_in_grid(filepath, Plot_images, Plot_labels, reverse_transform, verbose=1) 
 
         # adversarial similarity training
         pbar = tqdm(train_loader, ncols=88, desc='adv/sim training')
@@ -112,10 +113,32 @@ def main():
 
         recon_images = model.iptnet(ref_images)
         Plot_images.append([rimg.cpu() for rimg in recon_images])
-
-        display_images_in_grid(filepath, Plot_images, Plot_labels, reverse_transform, verbose=1) 
-
+            
+        display_images_in_grid(result_train_path, Plot_images, Plot_labels, reverse_transform, verbose=1) 
         
+        ## attack, select corect test images
+
+        images, labels = next(iter(test_loader))
+        images, labels = images.to(args.device), labels.to(args.device)
+        output = model(images)
+        correct = output.argmax(dim=1) == labels
+        correct_ind = torch.nonzero(correct).squeeze()[:5]
+        test_images, test_labels = images[correct_ind], labels[correct_ind]
+        adv_Plot_images = [[img.cpu() for img in test_images]]
+
+        adv_images = auto_attack(args, test_images, model, test_labels)
+        adv_recons = model.iptnet(adv_images)
+        adv_Plot_images.append([img.cpu() for img in adv_images])
+
+        diff_imgs = []
+        for advimg, img in zip(test_images, adv_images):
+            diff = advimg - img 
+            diff_imgs.append(diff.cpu())
+        adv_Plot_images.append(diff_imgs)
+        adv_Plot_images.append([img.cpu() for img in adv_recons])
+
+        display_images_in_grid(result_attack_path, adv_Plot_images, None, reverse_transform, verbose=1) 
+
 
 if __name__ == '__main__':
     main()

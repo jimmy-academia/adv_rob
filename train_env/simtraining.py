@@ -24,6 +24,17 @@ class AdversarialSimilarityTrainer(Base_trainer):
                 adv_images = pgd_attack(self.args, images, self.model.iptnet, images, True, attack_iters=7)
                 output = self.model.iptnet(adv_images)
                 mseloss = torch.nn.MSELoss()(output, images)
+
+                # Add the regularization loss for distinct embedding weights
+                weight = self.model.iptnet.embedding.weight
+                norm_weight = torch.nn.functional.normalize(weight, p=2, dim=1)
+                cosine_similarity = torch.matmul(norm_weight, norm_weight.t())
+                identity_mask = torch.eye(cosine_similarity.size(0), device=cosine_similarity.device)
+                regloss = (cosine_similarity * (1 - identity_mask)).sum() / (cosine_similarity.size(0) * (cosine_similarity.size(0) - 1))
+
+                loss = mseloss + 0.01 * regloss
+
+
                 optimizer.zero_grad()
                 mseloss.backward()
                 optimizer.step()

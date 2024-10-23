@@ -4,6 +4,11 @@
 
 > insert new experiment log from the top
 
+### 2024-10-23
+(in screen run) => run 75 epoch, look if adv_acc go up and then down
+next steps: step size scheduling (use ttt), ??
+
+
 ### 2024-10-02
 
 breakthrough this week!!!

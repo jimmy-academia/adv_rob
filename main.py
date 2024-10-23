@@ -17,6 +17,7 @@ def set_arguments():
     parser.add_argument('--model', type=str, default='resnetcifarapt', choices=['mobilenet', 'mobileapt', 'tttbasic', 'resnetcifar', 'resnetcifarapt'])
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10'])
     parser.add_argument('--train_env', type=str, default='AST', choices=['AT', 'AST', 'TTT', 'TTAdv'])
+    parser.add_argument('--attack_type', type=str, default='aa', choices=['aa', 'pgd'])
 
     # test time settings
     parser.add_argument('--test_time', type=str, default='none', choices=['none', 'standard', 'online'])
@@ -29,11 +30,11 @@ def set_arguments():
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--eps', type=int, default=None)
     parser.add_argument('--attack_iters', type=int, default=50, help='iter for eval')
-    parser.add_argument('--eval_interval', type=int, default=10, help='eval during train')
+    parser.add_argument('--eval_interval', type=int, default=1, help='eval during train')
     
     # detail model decisions (iptnet)
-    parser.add_argument('--patch_size', type=int, default=2)
-    parser.add_argument('--vocab_size', type=int, default=128)
+    parser.add_argument('--patch_size', type=int, default=1)
+    parser.add_argument('--vocab_size', type=int, default=8)
     
     # train record path or notes 
     parser.add_argument('--ckpt', type=str, default='ckpt')
@@ -77,6 +78,9 @@ def main():
 
     # Initialize components based on config
     model = get_model(args)
+    print(model)
+    print()
+    
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     Num, whatB = params_to_memory(num_parameters)
     param_msg = f'model param count: {num_parameters} ≈ {Num}{whatB}'
@@ -84,6 +88,7 @@ def main():
     # additional information for iptnet
     if 'ipt' in args.model or 'apt' in args.model:
         print(f'>>>> ipt config: vocab_size = {args.vocab_size}, patch_size={args.patch_size}')
+
 
     train_loader, test_loader = get_dataloader(args)
     trainer = get_trainer(args, model, train_loader, test_loader)
