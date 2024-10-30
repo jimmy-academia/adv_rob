@@ -4,6 +4,20 @@
 
 > insert new experiment log from the top
 
+### 2024-10-29
+- previously: finished afa trainer and network = average (zeroth order)+ fine tune
+- today: finished zlqh network and trainer (except q) = 
+  - zeroth order: 1 value is the average of entire patch
+  - linear order: 3 values for width, height, and channel-wise direction gradient
+  - [todo] quadratic order: 3 values
+  - high order noise: T values for tokenization reconstruction into full patch
+
+TODOs: quadratic order, exp/calc_lambda.py to calculalate lambda value for each order
+
+### 2024-10-24
+base = 0.2969 under AutoAttack
+trying softmax better? => visualize reconstruction!
+
 ### 2024-10-23
 (in screen run) => run 75 epoch, look if adv_acc go up and then down
 next steps: step size scheduling (use ttt), ??

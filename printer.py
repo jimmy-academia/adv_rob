@@ -1,13 +1,13 @@
 
 import matplotlib.pyplot as plt
-from datasets import rev_norm_transform
+# from datasets import rev_norm_transform
 
 
-def display_images_in_grid(imgpath, image_list, labels=None, rev_norm=None, verbose=0):
+def display_images_in_grid(imgpath, image_list, labels=None, verbose=0):
 
     # Determine rows and columns
-    # assert it is list of lists
-    assert isinstance(image_list[0], list)
+    # assert it is list
+    # assert isinstance(image_list, list)
 
     num_rows = len(image_list) 
     num_cols = len(image_list[0])
@@ -19,11 +19,8 @@ def display_images_in_grid(imgpath, image_list, labels=None, rev_norm=None, verb
         for col in range(num_cols):
             plt.subplot(num_rows, num_cols, row * num_cols + col + 1)
             img = image_list[row][col]
-            if rev_norm:
-                if type(rev_norm) is str: ## it is the dataset
-                    rev_norm = rev_norm_transform(rev_norm) 
-                img = rev_norm(img).clamp(0, 1)
-            plt.imshow(img.permute(1, 2, 0).detach().numpy())  # Assuming image in (C, H, W) format
+            img = img.clamp(0, 1)
+            plt.imshow(img.permute(1, 2, 0).cpu().detach().numpy())  # Assuming image in (C, H, W) format
             plt.xticks([])  # Remove x-axis ticks
             plt.yticks([])  # Remove y-axis ticks
 
@@ -37,4 +34,5 @@ def display_images_in_grid(imgpath, image_list, labels=None, rev_norm=None, verb
     plt.close()
 
     if verbose > 0:
+        print()
         print('saved image grid in ', imgpath)

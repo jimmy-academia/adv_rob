@@ -1,43 +1,27 @@
 import numpy as np
+import torch
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import Dataset, DataLoader
 
 from utils import * # Rootdir, common_corruptions defined in utils
 
-transform_Normalization_dict = {
-    'svhn': transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
-    'mnist': transforms.Normalize((0.1307, 0.1307, 0.1307), (0.3081, 0.3081, 0.3081)),  # Expanded to 3 channels
-    'cifar10': transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
-    'cifar100': transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
-    'imagenet': transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-}
 
 cifar10_class_names = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
-def rev_norm_transform(dataset):
-    normalize = transform_Normalization_dict[dataset]
-    mean, std = normalize.mean, normalize.std
-    
-    mean = torch.tensor(mean)
-    std = torch.tensor(std)
-    
-    # Reverse transformation: first multiply by std and then add the mean
-    return transforms.Compose([
-        transforms.Normalize(mean=[0., 0., 0.], std=1/std),
-        transforms.Normalize(mean=-mean, std=[1., 1., 1.])
-    ])
-
-def get_dataloader(args): 
+def get_datasets(args):
     data_transform = transforms.Compose([
         transforms.Resize(args.image_size),
         transforms.Grayscale(num_output_channels=3) if args.dataset == 'mnist' else (lambda x: x),
         transforms.ToTensor(),
-        transform_Normalization_dict[args.dataset], 
     ])
 
     train_set = getattr(datasets, args.dataset.upper())(root=Rootdir, train=True, download=True, transform=data_transform)
     test_set = getattr(datasets, args.dataset.upper())(root=Rootdir, train=False, download=True, transform=data_transform)
+    return train_set, test_set
+
+def get_dataloader(args): 
+    train_set, test_set = get_datasets(args)
 
     if args.test_time == 'none':
         print(f'>>>> Dataset: Clean {args.dataset}, no test time augmentation')
@@ -115,3 +99,26 @@ def prepare_corrupt_test_data(args):
         data = np.load(Rootdir/dataset_mapping[args.dataset]/f'{args.corrupt_type}.npy')
         data = data[(args.corrupt_level-1)*perlvl_num: args.corrupt_level*perlvl_num]
     return data
+
+
+# don't do normalization for more concistent range with norm-bounded attacks
+# transform_Normalization_dict = {
+#     'svhn': transforms.Normalize((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+#     'mnist': transforms.Normalize((0.1307, 0.1307, 0.1307), (0.3081, 0.3081, 0.3081)),  # Expanded to 3 channels
+#     'cifar10': transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+#     'cifar100': transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+#     'imagenet': transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+# }
+
+# def rev_norm_transform(dataset):
+#     normalize = transform_Normalization_dict[dataset]
+#     mean, std = normalize.mean, normalize.std
+    
+#     mean = torch.tensor(mean)
+#     std = torch.tensor(std)
+    
+#     # Reverse transformation: first multiply by std and then add the mean
+#     return transforms.Compose([
+#         transforms.Normalize(mean=[0., 0., 0.], std=1/std),
+#         transforms.Normalize(mean=-mean, std=[1., 1., 1.])
+#     ])

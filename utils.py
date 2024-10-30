@@ -127,6 +127,7 @@ def default_args():
     # train record path or notes 
     args.ckpt = 'ckpt'  # Default value
     args.record_path = None  # Default value
+    args.lr = 1e-3
     
     return args
 

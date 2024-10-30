@@ -1,5 +1,8 @@
 from networks.model_list import * 
 
 def get_model(args):
-    model = globals()[args.model](args)
+    if '_' not in args.model:
+        model = globals()[args.model](args)
+    else:
+        model = globals()['dummy_models'](args)
     return model
