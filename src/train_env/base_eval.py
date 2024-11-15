@@ -113,7 +113,7 @@ class Base_trainer:
                     diffimages = sample_adv_imgs - sample_imgs
                     adv_recons = model_copy.iptnet(sample_adv_imgs)
 
-                    display_images_in_grid(tmpfilepath, [all_vis, train_imgs, train_recon, sample_imgs, test_recon, diffimages, sample_adv_imgs, adv_recons], None, self.args.dataset, 1)
+                    display_images_in_grid(tmpfilepath, [all_vis, train_imgs, train_recon, sample_imgs, test_recon, diffimages, sample_adv_imgs, adv_recons], None, 1)
 
                     printed = True 
 

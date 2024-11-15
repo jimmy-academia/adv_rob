@@ -25,8 +25,8 @@ class ZLQHNet(nn.Module):
 
         # coefficients
         self.lin_coeff = lambda x: [1 - 2 * (i / (x - 1)) for i in range(x)]
-        self.lambda_lin = 0.1
-        self.lambda_high = 0.01
+        self.lambda_lin = 0.3 # 0.1
+        self.lambda_high = 0.1 # 0.01
 
     def _make_layers(self, _final_channel, init_channel=16, additional_layers=3, min_output=0):
         total_reduction = self.args.patch_size; reduction_done = 1

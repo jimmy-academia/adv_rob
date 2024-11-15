@@ -4,6 +4,18 @@
 
 > insert new experiment log from the top
 
+### 2024-11-15
+- reorganize: README.md; src/; doc/
+
+### 2024-11-14
+- tokenization phase 1 high order embeeding token complete
+- next: phase 2 = do tokenization work under adversarial noise?
+- + restructure organize experiment code; plan writing. 
+
+### 2024-11-13
+> Back to work
+- test if tokenization is meaningful... `cp exp/calc_lambda.py exp/calc_tokenization.py`
+
 ### 2024-10-29
 - previously: finished afa trainer and network = average (zeroth order)+ fine tune
 - today: finished zlqh network and trainer (except q) = 
