@@ -1,11 +1,30 @@
-# efficient adversarial robustness
+# Efficient Adversarial Robustness
 
-## experiment log
+## Usage
+- source code for training and robustness evaluation:
+```bash
+cd src
+python main.py  # for individual runs
+python script/main_exp.py # for full runs.
+```
+- source code for qualitative experiments:
+```bash
+cd exp
+python 
+python 
+```
+
+## Experiment Log
 
 > insert new experiment log from the top
 
+### 2024-11-16
+- 
+
 ### 2024-11-15
-- reorganize: README.md; src/; doc/
+- reorganize location: README.md; src/; doc/; (exp/?)... maybe exp not good...
+- configure src/main.py to test ablation between token and direct prediction for zlqhnet.high_predictor
+  `python main.py` vs `python main.py --direct`
 
 ### 2024-11-14
 - tokenization phase 1 high order embeeding token complete

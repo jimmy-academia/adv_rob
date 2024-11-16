@@ -38,10 +38,11 @@ class Base_trainer:
         self.model.eval()
         _attack = auto_attack if self.args.attack_type == 'aa' else pgd_attack
         test_correct, adv_correct, test_total, tt_correct = self.test_attack(_attack)
+        self.robust_acc = adv_correct/test_total
         self.eval_records['epoch'].append(self.epoch)
         self.eval_records['test_acc'].append(test_correct/test_total)
         self.eval_records['test_time_acc'].append(tt_correct/test_total)
-        self.eval_records['adv_acc'].append(adv_correct/test_total)
+        self.eval_records['adv_acc'].append(self.robust_acc)
 
         print(f'///eval/// Test_acc: {test_correct/test_total:.4f}, Test_time_acc: {tt_correct/test_total:.4f}, '
           f'Adv_acc: {adv_correct/test_total:.4f}, ')
@@ -79,7 +80,7 @@ class Base_trainer:
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
             total += len(labels)
 
-            if not printed:
+            if not printed and not self.args.direct:
                 correct_ind = pred.argmax(dim=1) == labels
                 incorrect_ind = adv_pred.argmax(dim=1) != labels
                 batch_indices = torch.nonzero(incorrect_ind*correct_ind).squeeze()[:5]
@@ -89,6 +90,8 @@ class Base_trainer:
                 
 
                 final_cond = batch_idx == len(self.test_loader) - 1 and len(sample_imgs) > 0
+
+
                 if len(sample_imgs) >= 5 or final_cond:
                     
                     sample_imgs = torch.stack(sample_imgs)
@@ -112,6 +115,7 @@ class Base_trainer:
                     test_recon = model_copy.iptnet(sample_imgs)
                     diffimages = sample_adv_imgs - sample_imgs
                     adv_recons = model_copy.iptnet(sample_adv_imgs)
+
 
                     display_images_in_grid(tmpfilepath, [all_vis, train_imgs, train_recon, sample_imgs, test_recon, diffimages, sample_adv_imgs, adv_recons], None, 1)
 

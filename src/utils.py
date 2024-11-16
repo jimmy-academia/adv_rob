@@ -16,6 +16,12 @@ from pathlib import Path
 
 torch.set_printoptions(sci_mode=False)
 
+import subprocess
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+
 def set_seeds(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -92,6 +98,15 @@ def params_to_memory(params, precision=32):
 
     # Round the size and return the value with the appropriate unit
     return round(size), units[unit_index]
+
+def run_command(cmd, shell=True):
+    # shell = True: cmd = 'python test.py'
+    # shell = False: cmd = ['python', 'test.py']
+    import subprocess
+    try:
+        subprocess.run(cmd, check=True, shell=shell)
+    except subprocess.CalledProcessError as e:
+        print(f"Experiment failed with error: {e}")
 
 # ==== arguments ==== #
 

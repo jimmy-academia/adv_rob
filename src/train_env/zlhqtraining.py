@@ -124,4 +124,3 @@ class ZLQHTrainer(Base_trainer):
 
         return self.training_records
 
-

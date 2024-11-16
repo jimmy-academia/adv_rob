@@ -13,8 +13,11 @@ class ZLQHNet(nn.Module):
         self.zero_predictor = nn.Sequential(*self._make_layers(1, 2, 1))
         self.linear_predictor = nn.Sequential(*self._make_layers(3, 4, 1))
         # self.quadratic_predictor = nn.Sequential(*self._make_layers(3, 8, 2))
-        self.high_predictor = nn.Sequential(*self._make_layers(args.vocab_size, 8, 3))
-        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
+        if args.direct:
+            self.high_predictor = nn.Sequential(*self._make_layers(self.patch_numel, 8, 3))
+        else:
+            self.high_predictor = nn.Sequential(*self._make_layers(args.vocab_size, 8, 3))
+            self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
         self.softmax = nn.Softmax(-1)
 
         ## move patch from stack back to image
@@ -113,12 +116,19 @@ class ZLQHNet(nn.Module):
         # q = self.quadratic_predictor(x)
         # q = q.repeat_interleave(2, dim=2).repeat_interleave(2, dim=3)
 
-        x = self.high_predictor(x)     # bs, T, 16, 16
-        x = x.permute(0, 2,3,1)     # bs, 16, 16, T
-        x = x.view(x.size(0), -1, x.size(-1))   # bs, 256, T
-        x = self.softmax(x)
-        x = torch.matmul(x, self.embedding.weight)  # bs, 256, 12
-        x = self.inverse(x)         # bs, 3, 32, 32
+        x = self.high_predictor(x)     
+        if args.direct:
+            # bs, 12, 16, 16
+            x = x.permute(0, 2,3,1) # bs, 16, 16, 12
+            x = x.view(x.size(0), -1, self.patch_numel) # bs, 256, 12
+            x = self.inverse(x) # bs, 3, 32, 32
+        else:
+            # bs, T, 16, 16
+            x = x.permute(0, 2,3,1)     # bs, 16, 16, T
+            x = x.view(x.size(0), -1, x.size(-1))   # bs, 256, T
+            x = self.softmax(x)
+            x = torch.matmul(x, self.embedding.weight)  # bs, 256, 12
+            x = self.inverse(x)         # bs, 3, 32, 32
 
         return z + self.lambda_lin*l + self.lambda_high*x
     
