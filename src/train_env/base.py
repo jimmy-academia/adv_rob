@@ -4,7 +4,7 @@ from tqdm import tqdm
 from collections import defaultdict
 from attacks.default import auto_attack, pgd_attack
 
-class Base_trainer:
+class BaseTrainer:
     def __init__(self, args, model, train_loader, test_loader):
         self.args = args
         self.model = model
@@ -21,8 +21,21 @@ class Base_trainer:
 
         self.orig_allvis = None
 
-
     def train(self):
+        self.train_setup() # for initializing self.model, self.optimizer, self.scheduler... etc.
+
+        self.runtime = 0
+        for self.epoch in range(1, self.num_epochs+1):
+            self.train_one_epoch()
+                
+            self.append_training_record()    
+            self.periodic_check()
+
+    def train_setup(self):
+        raise NotImplementedError
+
+    def train_one_epoch(self):
+        # instantiate/update: self.correct, self.total, self.runtime, self.loss
         raise NotImplementedError
 
     def append_training_record(self):
@@ -33,6 +46,11 @@ class Base_trainer:
 
         print(f'Epoch [{self.epoch}/{self.num_epochs}], '
           f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item():.4f}')
+
+    def periodic_check(self):
+        if self.epoch % self.args.eval_interval == 0 and self.epoch != self.num_epochs:
+            self.eval()
+        self.model.train()
 
     def eval(self):
         self.model.eval()
@@ -48,11 +66,6 @@ class Base_trainer:
           f'Adv_acc: {adv_correct/test_total:.4f}, ')
         print()
         
-    def periodic_check(self):
-        if self.epoch % self.args.eval_interval == 0 and self.epoch != self.num_epochs:
-            self.eval()
-        self.model.train()
-
     def test_attack(self, adv_perturb):
         printed=False
         total = test_correct = tt_correct = adv_correct = 0

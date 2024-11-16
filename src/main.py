@@ -42,6 +42,8 @@ def set_arguments():
     parser.add_argument('--attack_iters', type=int, default=50, help='iter for eval')
     parser.add_argument('--eval_interval', type=int, default=1, help='eval during train')
     parser.add_argument('--lr', type=float, default=1e-3, help='learn rate')
+    parser.add_argument('--step_size', type=float, default=10, help='lr schedule epoch steps')
+    parser.add_argument('--gamma', type=float, default=0.5, help='lr schedule reduce rate')
     
     # detail model decisions (iptnet)
     parser.add_argument('--patch_size', type=int, default=2)
