@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 from attacks.default import pgd_attack
-from train_env.base_eval import BaseTrainer
+from train_env.base import BaseTrainer
 
 class AdversarialTrainer(BaseTrainer):
 

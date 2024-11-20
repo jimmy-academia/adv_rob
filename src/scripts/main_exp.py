@@ -1,11 +1,12 @@
-import subprocess
-# Define the different configurations
+import sys
+sys.path.append('.')
+from utils import run_command
+
 models = ['mobilenet', 'resnetcifar', 'resnetcifar_apt']
 train_envs = ['AT', 'AFA', 'ZLQH']
 datasets = ['cifar10']
 attack_types = ['aa', 'pgd']
 
-# Directory to save logs and results
 log_dir = "experiment_logs"
 
 # Loop over all combinations of configurations
@@ -24,11 +25,5 @@ for model in models:
                 ]
 
                 # Run the command
-                run_command(cmd)
+                run_command(cmd, shell=False)
 
-
-def run_command(cmd):
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Experiment failed with error: {e}")

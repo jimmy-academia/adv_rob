@@ -103,8 +103,12 @@ def run_command(cmd, shell=True):
     # shell = True: cmd = 'python test.py'
     # shell = False: cmd = ['python', 'test.py']
     import subprocess
+
+    env = os.environ.copy()
+    env["IS_SUBPROCESS"] = "1"
+
     try:
-        subprocess.run(cmd, check=True, shell=shell)
+        subprocess.run(cmd, check=True, shell=shell, env=env)
     except subprocess.CalledProcessError as e:
         print(f"Experiment failed with error: {e}")
 

@@ -116,4 +116,19 @@ def main():
     torch.save(trainer.model.state_dict(), args.record_path.with_suffix('.pth'))
     
 if __name__ == '__main__':
+
+    if os.getenv("IS_SUBPROCESS") != "1":
+        msg = """
+            working on:
+            script/main_exp.py for main experiments, 
+            script/abalation.py for ablation experiments
+            future .... script/qualitative.py ....
+
+            ===
+
+            Next ==> logging and printing result!
+        """
+        print(msg)
+        input('>stop<')
+
     main()

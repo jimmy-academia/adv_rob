@@ -4,13 +4,13 @@ import torch
 from tqdm import tqdm
 
 from attacks.default import pgd_attack
-from train_env.base_eval import Base_trainer
+from train_env.base import BaseTrainer
 
 from datasets import rotate_batch
 from debug import *
 
 
-class TestTimeTrainer(Base_trainer):
+class TestTimeTrainer(BaseTrainer):
     '''
     implement Test-Time Training
     '''

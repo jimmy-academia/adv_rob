@@ -9,7 +9,7 @@ import operator
 from functools import reduce
 
 from attacks.default import pgd_attack
-from train_env.base_eval import BaseTrainer
+from train_env.base import BaseTrainer
 
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, Subset

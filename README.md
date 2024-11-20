@@ -18,8 +18,8 @@ python
 
 > insert new experiment log from the top
 
-### 2024-11-16
-- 
+### 2024-11-20
+- add usage msg to main.py; print when directly called (not from script/xx_exp.py)
 
 ### 2024-11-15
 - reorganize location: README.md; src/; doc/; (exp/?)... maybe exp not good...
