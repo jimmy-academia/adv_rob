@@ -14,9 +14,12 @@ pyrhon script/qualitative.py # TODO: script for qualitative tests
 
 > insert new experiment log from the top
 
+### 2024-11-28
+- finish conding the consolidation of afa, zlqh... into ablations of iptnet for model and train_env
+- `todo: code logging and printing results; code the all script/experiment codes; run all exp script`
+
 ### 2024-11-27
 - restart progress.
-
 
 ### 2024-11-20
 - add usage msg to main.py; print when directly called (not from script/xx_exp.py)

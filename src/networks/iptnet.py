@@ -3,31 +3,50 @@ import torch.nn as nn
 
 from networks.test_time import BasicBlock
 
-class APTNet(nn.Module):
-    '''
-    APTNet outputs (image_size // patch_size)^2 x vocab_size
-    by processing the full image as a whole. 
-    Alternative (IPTNet) is to process each patch individually.
-    '''
-    def __init__(self, args, base_filter_channels=16, additional_layers=3):
-        # in_dim, out_dim, hidden_layers
-        # first in_dim: args.channels
-        # last out_dim: args.vocab_size
-        super(APTNet, self).__init__()
+from functools import reduce
+
+class IPTNet(nn.Module):
+    def __init__(self, args):
+        super(IPTNet, self).__init__()
         self.args = args
         self.patch_numel = args.channels * args.patch_size * args.patch_size
         self.grid_size = args.image_size // args.patch_size
 
-        ## Automatically determine the strides based on patch_size
+        self.zero_predictor = nn.Sequential(*self._make_layers(1, 2, 1))
+        self.linear_predictor = nn.Sequential(*self._make_layers(3, 4, 1))
+        self.quadratic_predictor = nn.Sequential(*self._make_layers(3, 8, 2))
+        
+        if args.direct:
+            self.high_predictor = nn.Sequential(*self._make_layers(self.patch_numel, 8, 3))
+        else:
+            self.high_predictor = nn.Sequential(*self._make_layers(args.vocab_size, 8, 3))
+        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
+        
+        self.order_count = sum(1 for char in 'zlq' if char in args.tok_ablation)
+        self.predictor_list = [self.zero_predictor, self.linear_predictor, self.quadratic_predictor][:self.order_count]
+        self.order_count += 1
+        self.predictor_list.append(self.high_predictor)
+        
+        self.softmax = nn.Softmax(-1)
 
-        total_reduction = args.patch_size; reduction_done = 1
+        ## reverse from stack of patches back to image
+        self.inv_patcher = nn.ConvTranspose2d(self.patch_numel, args.channels, args.patch_size, args.patch_size)
+        self._initialize_weights()
+        for param in self.inv_patcher.parameters():
+            param.requires_grad = False
+
+        # coefficients
+        self.lin_coeff = lambda x: [1 - 2 * (i / (x - 1)) for i in range(x)]
+
+    def _make_layers(self, _final_channel, init_channel=16, additional_layers=3, min_output=0):
+        total_reduction = self.args.patch_size; reduction_done = 1
 
         _layers = []
-        in_dim = args.channels
-        out_dim = base_filter_channels
+        in_dim = self.args.channels
+        out_dim = init_channel
 
-        # non_lin = nn.ReLU()
-        non_lin = nn.Sigmoid()
+        non_lin = nn.Mish()
+        final_non_lin = nn.Sigmoid() if min_output == 0 else nn.Tanh()
 
         while True:
             s = 2 if reduction_done < total_reduction else 1
@@ -37,28 +56,13 @@ class APTNet(nn.Module):
             out_dim = out_dim * 2
             reduction_done *= 2
             if s == 1: 
-                # no size reduction and skip connection
                 for __ in range(additional_layers):
                     _layers.append(BasicBlock(in_dim, in_dim, nn.BatchNorm2d, 1))
-                    # _layers.append(nn.Conv2d(in_dim, in_dim, kernel_size=3, stride=1, padding=1))
-                    # _layers.append(non_lin)
                 break
 
-        _layers.append(nn.Conv2d(in_dim, args.vocab_size, kernel_size=1, stride=1))
-        self.predictor = nn.Sequential(*_layers)
-
-        ## todo: add more conv2d with stride=1
-        # bs, 3, image_size, image_size => bs, T, image_size//patch_size, image_size//patch_size
-
-        self.embedding = nn.Embedding(args.vocab_size, self.patch_numel)  # T, 12
-        self.softmax = nn.Softmax(-1)
-        # self.relu = nn.ReLU()
-
-        ## move patch from stack back to image
-        self.inv_patcher = nn.ConvTranspose2d(self.patch_numel, args.channels, args.patch_size, args.patch_size)
-        self._initialize_weights()
-        for param in self.inv_patcher.parameters():
-            param.requires_grad = False
+        _layers.append(nn.Conv2d(in_dim, _final_channel, kernel_size=1, stride=1))
+        _layers.append(final_non_lin)
+        return _layers
 
     def _initialize_weights(self):
         # Set the weights for an identity operation
@@ -89,13 +93,59 @@ class APTNet(nn.Module):
         return x
 
     def forward(self, x):
-        x = self.predictor(x)     # bs, T, 16, 16
-        x = x.permute(0, 2,3,1)     # bs, 16, 16, T
-        x = x.view(x.size(0), -1, x.size(-1))   # bs, 256, T
-        x = self.softmax(x)
-        x = torch.matmul(x, self.embedding.weight)  # bs, 256, 12
-        x = self.inverse(x)         # bs, 3, 32, 32
-        return x
+        args = self.args
+        # ['opt', 'pzt', 'zlt', 'zlqt']
+        components = []
+        if 'z' in args.tok_ablation:
+            z = self.zero_predictor(x)  # bs, 1, 16, 16
+            z = z.repeat(1, args.channels, 1, 1)
+            z = z.repeat_interleave(args.patch_size, dim=2).repeat_interleave(args.patch_size, dim=3) 
+            components.append(z)
+        if 'l' in args.tok_ablation:
+            # [(a+b+c, -a+b+c), (a+b+0, -a+b+0), (a+b-c, -a+b-c)]
+            # [(a-b+c, -a-b+c), (a-b+0, -a-b+0), (a-b-c, -a-b-c)]
+
+            l = self.linear_predictor(x) # bs, 3, 16, 16
+            a = torch.stack(list(map(lambda f: l[:, 0]*f, self.lin_coeff(args.patch_size))))
+            a = a.permute(1,0,2,3).permute(0,2,1,3).mT.flatten(-2).repeat_interleave(args.patch_size, dim=1)
+            a = a.unsqueeze(1).repeat(1, args.channels,1,1)
+
+            b = torch.stack(list(map(lambda f: l[:, 1]*f, self.lin_coeff(args.patch_size))))
+            b = b.permute(1,0,2,3).permute(0,3,2,1).flatten(-2).repeat_interleave(args.patch_size, dim=1).mT
+            b = b.unsqueeze(1).repeat(1, args.channels,1,1)
+
+            # if args.channels != 1: We do not consider channel = 1; expand to 3 channel for MNIST.
+            c = torch.stack(list(map(lambda f: l[:, 2]*f, self.lin_coeff(args.channels)))).permute(1,0,2,3)
+            c = c.repeat_interleave(args.patch_size, dim=2).repeat_interleave(args.patch_size, dim=3)
+            l = (a+b+c)/3
+
+            l = l / l.max() if l.max() > 1 else l 
+            components.append(l)
+
+
+        if 'q' in args.tok_ablation:
+            # q = self.quadratic_predictor(x)
+            # q = q.repeat_interleave(2, dim=2).repeat_interleave(2, dim=3)
+            raise NotImplementedError
+            components.append(q)
+            
+        x = self.high_predictor(x)     
+        if args.direct:
+            # bs, 12, 16, 16
+            x = x.permute(0, 2,3,1) # bs, 16, 16, 12
+            x = x.view(x.size(0), -1, self.patch_numel) # bs, 256, 12
+            x = self.inverse(x) # bs, 3, 32, 32
+        else:
+            # bs, T, 16, 16
+            x = x.permute(0, 2,3,1)     # bs, 16, 16, T
+            x = x.view(x.size(0), -1, x.size(-1))   # bs, 256, T
+            x = self.softmax(x)
+            x = torch.matmul(x, self.embedding.weight)  # bs, 256, 12
+            x = self.inverse(x)         # bs, 3, 32, 32
+
+        components.append(x)
+        lambdas = [1, args.lambda1, args.lambda2, args.lambda3][:self.order_count]
+        return reduce(lambda acc, terms: acc+terms[0]*terms[1], zip(lambdas, components), 0)
     
     def visualize_embeddings(self):
 
@@ -126,3 +176,21 @@ class APTNet(nn.Module):
         regloss = (cosine_similarity * (1 - identity_mask)).sum() / (cosine_similarity.size(0) * (cosine_similarity.size(0) - 1))
 
         return regloss
+
+'''
+l = torch.rand(2, 3, 2, 2)
+
+torch.stack(list(map(lambda f: l[:, 2]*f, lin_coeff(3)))).permute(1,0,2,3).repeat_interleave(2, dim=2).repeat_interleave(2, dim=3)
+
+torch.stack(list(map(lambda f: l[:, 0]*f, lin_coeff(2)))).permute(1,0,2,3).permute(0,2,1,3).mT.flatten(-2).repeat_interleave(2, dim=1).unsqueeze(1).repeat(1,3,1,1)
+
+torch.stack(list(map(lambda f: l[:, 1]*f, lin_coeff(2)))).permute(1,0,2,3).permute(0,3,2,1).flatten(-2).repeat_interleave(2, dim=1).mT.unsqueeze(1).repeat(1,3,1,1)
+
+
+torch.stack(list(map(lambda f: l[:, 0]*f, lin_coeff(2)))).permute(3,1,2,0)
+.permute(1,0,2,3).permute(0,3,2,1).flatten(-2).repeat_interleave(2, dim=1).mT
+
+'''
+
+
+

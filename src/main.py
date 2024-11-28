@@ -24,10 +24,18 @@ def set_arguments():
     parser.add_argument('--record_path_suffix', type=str, default='')
 
     # main decisions
-    # --model choices=['mobilenet', 'mobilenet_apt', 'tttbasic', 'resnetcifar', 'resnetcifar_apt', 'resnetcifar_afa']
-    parser.add_argument('--model', type=str, default='resnetcifar_zlqh')
+    # --model choices=['mobilenet', 'mobilenet_ipt', 'resnetcifar', 'resnetcifar_ipt', 'tttbasic']
+    parser.add_argument('--model', type=str, default='resnetcifar_ipt')
+    parser.add_argument('--tok_ablation', type=str, default='zlt', choices=['opt', 'pzt', 'zlt', 'zlqt'])
+    parser.add_argument('--direct', action='store_true', help='no token; directly predict high order noise')
+    parser.add_argument('--joint_train', action='store_true', help='no dual steps, train embedding and predictor together')
+    parser.add_argument('--lambda1', type=float, default=0.3)
+    parser.add_argument('--lambda2', type=float, default=0.1)
+    parser.add_argument('--lambda3', type=float, default=0.03)
+
+
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10'])
-    parser.add_argument('--train_env', type=str, default='ZLQH', choices=['AT', 'AST', 'ALT', 'AFA', 'ZLQH', 'ZLQH_dir', 'TTT', 'TTAdv'])
+    parser.add_argument('--train_env', type=str, default='AST', choices=['AT', 'AST', 'TTT', 'TTAdv'])
     parser.add_argument('--attack_type', type=str, default='aa', choices=['aa', 'pgd'])
 
     # test time settings
@@ -50,7 +58,6 @@ def set_arguments():
     # detail model decisions (iptnet)
     parser.add_argument('--patch_size', type=int, default=2)
     parser.add_argument('--vocab_size', type=int, default=128)
-    parser.add_argument('--direct', action='store_true', help='directly predict high order noise')
     
     args = parser.parse_args()
     return args
@@ -131,9 +138,11 @@ if __name__ == '__main__':
             Next ==> 
 
             A. converge current results
-            a. consolidate ipt, afa, .... into ipt with argument variants
-            b. logging and printing result!
-            c. code sensitivity tests
+                a. logging and printing result!
+                b. code (check) script/main_exp
+                c. code script/ablation_exp.py
+                d. code script/sensitivity_exp.py
+                e. run all code
 
             B. increase realm = test time training
         """

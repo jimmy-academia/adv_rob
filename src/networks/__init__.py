@@ -4,5 +4,5 @@ def get_model(args):
     if '_' not in args.model:
         model = globals()[args.model](args)
     else:
-        model = globals()['dummy_models'](args)
+        model = globals()['dummy_model'](args)
     return model
