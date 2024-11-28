@@ -9,6 +9,8 @@ from train_env import get_trainer
 
 from debug import *
 
+import argparse
+
 # fix attack evaluation methods; adjust model and tranining
 def set_arguments():
     parser = argparse.ArgumentParser(description='Run experiments')
@@ -126,7 +128,14 @@ if __name__ == '__main__':
 
             ===
 
-            Next ==> logging and printing result!
+            Next ==> 
+
+            A. converge current results
+            a. consolidate ipt, afa, .... into ipt with argument variants
+            b. logging and printing result!
+            c. code sensitivity tests
+
+            B. increase realm = test time training
         """
         print(msg)
         input('>stop<')

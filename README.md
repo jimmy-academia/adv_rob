@@ -1,22 +1,22 @@
 # Efficient Adversarial Robustness
 
 ## Usage
-- source code for training and robustness evaluation:
+- source 
 ```bash
 cd src
-python main.py  # for individual runs
-python script/main_exp.py # for full runs.
+python main.py --model resnetcifar_zlqh --dataset cifar10 # for individual runs
+python script/main_exp.py # script for full training and robustness evaluation
+pyrhon script/qualitative.py # TODO: script for qualitative tests
 ```
-- source code for qualitative experiments:
-```bash
-cd exp
-python 
-python 
-```
+
 
 ## Experiment Log
 
 > insert new experiment log from the top
+
+### 2024-11-27
+- restart progress.
+
 
 ### 2024-11-20
 - add usage msg to main.py; print when directly called (not from script/xx_exp.py)

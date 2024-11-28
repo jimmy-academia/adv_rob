@@ -1,7 +1,23 @@
+import sys
+import importlib
 
+from utils import setup_logging, readf
 import matplotlib.pyplot as plt
 # from datasets import rev_norm_transform
+from debug import *
 
+def main_console():
+    setup_logging()
+
+    if len(sys.argv) < 2:
+        logging.error("Usage: python printer.py main => gets script/main_exp.py")
+        sys.exit(1)
+
+    module = importlib.import_module('scripts.'+f'{sys.argv[1]}_exp')
+    module.print_experiments()
+
+def plot():
+    
 
 def display_images_in_grid(imgpath, image_list, labels=None, verbose=0):
 
@@ -36,3 +52,7 @@ def display_images_in_grid(imgpath, image_list, labels=None, verbose=0):
     if verbose > 0:
         print()
         print('saved image grid in ', imgpath)
+
+
+if __name__ == '__main__':
+    main_console()

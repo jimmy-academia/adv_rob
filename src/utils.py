@@ -4,8 +4,8 @@ variable settings and helper functions
 '''
 import os
 import random
-import torch
 import numpy as np
+import torch
 from types import SimpleNamespace
 
 import re
@@ -14,12 +14,8 @@ import argparse
 
 from pathlib import Path
 
-torch.set_printoptions(sci_mode=False)
-
-import subprocess
 import logging
-
-logging.basicConfig(level=logging.INFO)
+import subprocess
 
 
 def set_seeds(seed):
@@ -32,6 +28,23 @@ def set_seeds(seed):
     torch.backends.cudnn.benchmark = True
 
 # ==== read/write functions ===== #
+
+def setup_logging(verbose=1):
+    # usages: logging.warning; logging.error, logging.info, logging.debug
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    if verbose == 0:
+        level = logging.WARNING
+    elif verbose == 1:
+        level = logging.INFO
+    elif verbose == 2:
+        level = logging.DEBUG
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S',
+        handlers=[logging.StreamHandler()],  # Print to terminal
+    )
 
 def readf(path):
     with open(path, 'r') as f:
@@ -66,6 +79,8 @@ def loadj(filepath):
 
 # ==== Default Variable Setting ===== #
 
+torch.set_printoptions(sci_mode=False)
+
 ## rootdir setting for storing dataset from pytorch
 for dir_ in ['ckpt', 'cache']:
     os.makedirs(dir_, exist_ok=True)
@@ -79,7 +94,6 @@ common_corruptions = ['gaussian_noise', 'shot_noise', 'impulse_noise', 'defocus_
 
 
 # ==== Helper Functions ===== #
-
 
 def params_to_memory(params, precision=32):
     # Precision in bits, default is 32-bit (float32)
