@@ -15,7 +15,9 @@ pyrhon script/qualitative.py # TODO: script for qualitative tests
 > insert new experiment log from the top
 
 ### 2024-12-6
-- `main_exp` => 1) model 2) evaluations 3) baselines
+- plan: train, save model; evaluate, save results
+  1. train once, evaluate manytimes...
+- finish AST v AT, and then do baseline #, 'MART', 'TRADES', 'FASTAT'...
 
 ### 2024-11-28
 - finish conding the consolidation of afa, zlqh... into ablations of iptnet for model and train_env

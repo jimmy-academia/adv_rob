@@ -24,8 +24,7 @@ def set_arguments():
     parser.add_argument('--record_path_suffix', type=str, default='')
 
     # main decisions
-    # --model choices=['mobilenet', 'mobilenet_ipt', 'resnetcifar', 'resnetcifar_ipt', 'tttbasic']
-    parser.add_argument('--model', type=str, default='resnetcifar_ipt')
+    parser.add_argument('--model', type=str, default='resnet4')
     parser.add_argument('--tok_ablation', type=str, default='zlt', choices=['opt', 'pzt', 'zlt', 'zlqt'])
     parser.add_argument('--direct', action='store_true', help='no token; directly predict high order noise')
     parser.add_argument('--joint_train', action='store_true', help='no dual steps, train embedding and predictor together')
@@ -33,10 +32,12 @@ def set_arguments():
     parser.add_argument('--lambda2', type=float, default=0.1)
     parser.add_argument('--lambda3', type=float, default=0.03)
 
-
-    parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10'])
-    parser.add_argument('--train_env', type=str, default='AST', choices=['AT', 'AST', 'TTT', 'TTAdv'])
-    parser.add_argument('--attack_type', type=str, default='aa', choices=['aa', 'pgd'])
+    # , choices=['cifar10']
+    parser.add_argument('--dataset', type=str, default='cifar10')
+    # , choices=['AT', 'AST', 'TTT', 'TTAdv']
+    parser.add_argument('--train_env', type=str, default='AST')
+    # , choices=['aa', 'pgd']
+    parser.add_argument('--attack_type', type=str, default='all')
 
     # test time settings
     parser.add_argument('--test_time', type=str, default='none', choices=['none', 'standard', 'online'])
@@ -75,13 +76,19 @@ def post_process_args(args):
     args.ckpt.mkdir(parents=True, exist_ok=True)
     record_path = f'{args.train_env}_{args.model}_{args.dataset}' \
         + args.record_path_suffix
-    ## do more adjustments to record_path below if needed
+    
+    ## adjust record_path if needed
     if args.task == 'serial':
         record_path += f'_{datetime.datetime.now().strftime("%b%d-%H")}'
         count = len(list(args.ckpt.glob(f"{record_path}*")))
         record_path += f'_{count+1}' if count >= 1 else ''
 
     args.record_path = args.ckpt/record_path
+
+    ## adjust model name
+    if args.train_env == 'AST':
+        args.model += '_ipt'
+
 
     ## attacks
     if args.eps is None:
@@ -106,7 +113,6 @@ def main():
     print(string_args)
     print(f' >>> to save results to {args.record_path}')
 
-    # Initialize components based on config
     model = get_model(args)
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     Num, whatB = params_to_memory(num_parameters)
@@ -122,6 +128,8 @@ def main():
     trainer.train()
     trainer.eval()
     dumpj({'param info': param_msg, 'training_records':trainer.training_records, ' eval_records':trainer.eval_records, 'arguments':string_args}, args.record_path.with_suffix('.json'))
+
+    
     torch.save(trainer.model.state_dict(), args.record_path.with_suffix('.pth'))
     
 if __name__ == '__main__':
