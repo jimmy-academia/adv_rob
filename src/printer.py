@@ -17,6 +17,7 @@ def main_console():
     module.print_experiments()
 
 def plot():
+    pass
     
 
 def display_images_in_grid(imgpath, image_list, labels=None, verbose=0):

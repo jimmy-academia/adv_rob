@@ -8,7 +8,7 @@ from printer import display_images_in_grid
 def run_experiments():
 
     models = ['mobilenet', 'resnetcifar', 'resnetcifar_apt']
-    train_envs = ['AT', 'AFA', 'ZLQH']
+    train_envs = ['AT', 'AST']
     datasets = ['cifar10']
     attack_types = ['aa', 'pgd']
 
