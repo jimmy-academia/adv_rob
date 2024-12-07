@@ -9,10 +9,15 @@ python script/main_exp.py # script for full training and robustness evaluation
 pyrhon script/qualitative.py # TODO: script for qualitative tests
 ```
 
-
 ## Experiment Log
 
 > insert new experiment log from the top
+
+### 2024-12-7
+- reworked attack
+- next: check `train_evn/base.py`, `main_exp`, `train_env/ast.py` vs `attack.py` ==> esp. look at `pgd_attack`; coordinate so that pgd_attack can save iters, return 10, 20, 50 results together
+==> save time by not always doing test inference!!!
+- save evaluation results to json (dataset => model => train_env)
 
 ### 2024-12-6
 - plan: train, save model; evaluate, save results
@@ -90,3 +95,8 @@ breakthrough this week!!!
 
 Evaluating the adversarial robustness of adaptive test-time defenses
 Uncovering Adversarial Risks of Test-Time Adaptation
+
+## Future Todo:
+- check utils out of function global variables
+- test time training
+- cw attack

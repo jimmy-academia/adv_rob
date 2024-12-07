@@ -10,7 +10,9 @@ from types import SimpleNamespace
 
 import re
 import json
+import logging
 import argparse
+
 
 from pathlib import Path
 
@@ -26,6 +28,23 @@ def set_seeds(seed):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
+
+def set_verbose(verbose):
+    # usages: logging.warning; logging.error, logging.info, logging.debug
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    if verbose == 0:
+        level = logging.WARNING
+    elif verbose == 1:
+        level = logging.INFO
+    elif verbose == 2:
+        level = logging.DEBUG
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S',
+        handlers=[logging.StreamHandler()],  # Print to terminal
+    )
 
 # ==== read/write functions ===== #
 
@@ -82,8 +101,8 @@ def loadj(filepath):
 torch.set_printoptions(sci_mode=False)
 
 ## rootdir setting for storing dataset from pytorch
-for dir_ in ['ckpt', 'cache']:
-    os.makedirs(dir_, exist_ok=True)
+# for dir_ in ['ckpt', 'cache']:
+    # os.makedirs(dir_, exist_ok=True)
 
 default_rootdir_logpath = 'cache/rootdir'
 warn_msg = f"Warning: {default_rootdir_logpath} does not exist. Setting to './cache'"
