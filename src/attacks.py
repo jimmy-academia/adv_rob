@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 from functools import partial
 from autoattack import AutoAttack
+from tqdm import tqdm
 
-def conduct_attack(args, model, test_loader, multi_pgd=True):
+def conduct_attack(args, model, test_loader, multi_pgd=False, do_test=True):
     if args.attack_type == 'fgsm':
         adv_perturb = fgsm_attack
     elif args.attack_type == 'pgd':
@@ -15,10 +16,14 @@ def conduct_attack(args, model, test_loader, multi_pgd=True):
 
     total = test_correct = adv_correct = 0
     results = [0] * 3 if multi_pgd and args.attack_type == 'pgd' else None
-    for images, labels in tqdm(test_loader, ncols=90, desc='test_attack'):
+
+    model.to(args.device)
+    for images, labels in tqdm(test_loader, ncols=90, desc=f'conduct {args.attack_type} attack'):
         images, labels = images.to(args.device), labels.to(args.device)
-        pred = model(images)
-        test_correct += float((pred.argmax(dim=1) == labels).sum())
+
+        if do_test:
+            pred = model(images)
+            test_correct += float((pred.argmax(dim=1) == labels).sum())
 
         adv_images = adv_perturb(args, images, model, labels)
         if results is not None:
@@ -30,8 +35,8 @@ def conduct_attack(args, model, test_loader, multi_pgd=True):
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
-        if args.attack_type == 'aa':
-            break 
+        # if args.attack_type == 'aa':
+            # break 
 
     return test_correct, results if results else adv_correct, total
 
@@ -68,7 +73,7 @@ def pgd_attack(args, primary, model, labels, sim=False, attack_iters=None, multi
         variable = variable.clamp(0., 1.) # for primary
         secondary = variable.detach()
 
-        if step in {10, 20, 50}:
+        if multi and step in {10, 20, 50}:
             results.append(secondary.clone())
 
     return results if multi else secondary

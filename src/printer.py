@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 # from datasets import rev_norm_transform
 from debug import *
 
+cifar10_class_names = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
+
 def main_console():
     setup_logging()
 
@@ -13,6 +15,7 @@ def main_console():
         logging.error("Usage: python printer.py main => gets script/main_exp.py")
         sys.exit(1)
 
+    # filename = f'{sys.argv[1]}_exp'
     module = importlib.import_module('scripts.'+f'{sys.argv[1]}_exp')
     module.print_experiments()
 

@@ -1,77 +1,129 @@
 import sys
 sys.path.append('.')
-from utils import run_command
+import torch
+import logging
+from collections import defaultdict
+from types import SimpleNamespace
+from pathlib import Path
+
+from utils import set_verbose, run_command, loadj, dumpj, convert_args
+from attacks import conduct_attack
+from networks import get_model
+from datasets import get_dataloader
+
+from debug import *
 
 TASK = 'main_exp'
+output_dir = Path('ckpt/output/')
+output_dir.mkdir(parents=True, exist_ok=True)
+Record_path = output_dir/f'{TASK}_record.json'
+
+model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
+train_env_list = ['AT', 'AST'] 
+dataset_list = ['mnist', 'cifar10']
 
 def run_experiments():
-    models = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
-    train_envs = ['AST', 'AT'] 
-    datasets = ['mnist', 'cifar10']
+    set_verbose(1)
+    train_the_models()
+    evaluate_the_models()
 
-    train_the_models(models, train_envs, datasets)
-    evaluate_the_models(models, train_envs, datasets)
-
-def train_the_models(models, train_envs, datasets):
+def train_the_models():
 
     # Loop over all combinations of configurations
-    for dataset in datasets:
-        for model in models:
-            for train_env in train_envs:
-
-                print(''' 
-                    do logging => print to console
-                    check what to record in experiment_logs?
-                    if exists do not overwrite
-                    evalaute and print result later
-                    ''')
-                input('>> stop <<')
-
+    for dataset in dataset_list:
+        for model_name in model_list:
+            for train_env in train_env_list:
                 cmd = [
                     "python", "main.py",
-                    "--model", model,
+                    "--model", model_name,
                     "--train_env", train_env,
                     "--dataset", dataset,
-                    "--eval_interval" 10**10,
-                    "--save_interval" 1,
+                    "--eval_interval", str(10**10),
+                    "--save_interval", str(1),
                     "--task", TASK
                 ]
 
-                # Run the command
-                run_command(cmd, shell=False)
+                result_path = f'ckpt/{TASK}/{train_env}_{model_name}_{dataset}.pth'
+                if Path(result_path).exists():
+                    logging.info(f'{result_path} exists_______|')
+                else:
+                    # Run the command
+                    run_command(cmd, shell=False)
 
 
-def evaluate_the_models(models, train_envs, datasets):
+def evaluate_the_models():
 
+    Record = defaultdict(list)
     # Loop over all combinations of configurations
-    for dataset in datasets:
+    for dataset in dataset_list:
         specs = SimpleNamespace()
         specs.dataset = dataset
+        specs.batch_size = 128
         specs.image_size = 32 if dataset != 'imagenet' else 256
         specs.test_time = 'none'
 
         __, test_loader = get_dataloader(specs)
-        for model in models:
-            for train_env in train_envs:
-                record_path = Path(f'ckpt/{TASK}/{train_env}_{model}_{dataset}')
+        for model_name in model_list:
+            for train_env in train_env_list:
 
-                # load last epoch model
-                weight_path = record_path.with_suffix('.pth')
-                arg_path = record_path.with_suffix('.json')
-                args = loadj(arg_path).get('arguments')
+                instance_label = f'{train_env}_{model_name}_{dataset}'
+
+                logging.info(f'evaluating {instance_label}')
+                result_path = Path(f'ckpt/{TASK}/{instance_label}')
+                weight_path = result_path.with_suffix('.pth')
+                instance_info = loadj(result_path.with_suffix('.json'))
+                args = instance_info.get('arguments')
+                args = SimpleNamespace(**convert_args(args))
+                __, Num, whatB = instance_info.get('param_items')
+                Record[instance_label].append(f'{Num}{whatB}')
+
                 model = get_model(args)
-                model.load_state_dict(torch.load(weight_path, weigths_only=True))
+                model.load_state_dict(torch.load(weight_path, weights_only=True))
 
-                for attack_type in ['fgsm', 'pgd', 'aa']:
+                done_test = False # do test once for each instance
+                for attack_type in ['fgsm', 'pgd']:
                     args.attack_type = attack_type
-                    results = conduct_attack(args, model, test_loader)
+                    results = conduct_attack(args, model, test_loader, multi_pgd=True, do_test = not done_test)
                     test_correct, adv_correct, total = results
+
+                    if not done_test:
+                        done_test=True
+                        Record[instance_label].append(test_correct/total)
                     if attack_type == 'pgd':
-                        input('adv_correct is three numbers')
+                        Record[instance_label] += [a/total for a in adv_correct]
+                    else:
+                        Record[instance_label].append(adv_correct/total)
+
+                Record[instance_label].append(instance_info.get('training_records').get('runtime')[-1])
+
+                dumpj(Record, Record_path)
+
+#############################################
+####### USAGE: python printer.py main #######
+#############################################
+
+Model_Name_List = ["LeNet", "EfficientNet", "MobileNet", "ResNet_tiny"]
 
 def print_experiments():
-    print('okay')
-    pass
+    # Loop over all combinations of configurations
+    Record = loadj(Record_path)
+    for dataset in dataset_list:
+        eps = "0.3" if dataset == 'mnist' else "8/255"
+        print("\\midrule")
+        print("\\multirow{10}{*}{\\shortstack{\\textbf{"+dataset.upper()+"}\\\\($\\epsilon="+eps+"$)}} ")
+
+        for model_name in model_list:
+            for train_env in train_env_list:
+                instance_label = f'{train_env}_{model_name}_{dataset}'
+                inst_record = Record.get(instance_label)
+                inst_record = [str(x) for x in inst_record]
+
+                model_label = Model_Name_List[model_list.index(model_name)]
+                plusipt = " + IPT" if train_env == 'AST' else ""
+                latex_line = f"& {model_label}{plusipt} ({inst_record[0]}) & {train_env} & " + " & ".join(inst_record[1:]) + " \\\\"
+                print(latex_line)
+            print("\\cmidrule(lr){2-10}")
+
 
 if __name__ == '__main__':
     run_experiments()

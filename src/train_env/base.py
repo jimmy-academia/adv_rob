@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 import logging
 from collections import defaultdict
@@ -23,8 +24,11 @@ class BaseTrainer:
         self.runtime = 0
         for self.epoch in range(1, self.num_epochs+1):
             self.model.train()
+            
+            start = time.time()
             self.train_one_epoch()
-                
+            self.runtime += time.time() - start
+
             self.append_training_record()    
             self.periodic_save()
             self.periodic_check()
@@ -35,7 +39,6 @@ class BaseTrainer:
     def train_one_epoch(self):
         # instantiate/update: self.correct, self.total
         # calculate: self.loss
-        # update: self.runtime
         raise NotImplementedError
 
     def append_training_record(self):
@@ -52,7 +55,7 @@ class BaseTrainer:
             self.eval()
 
     def periodic_save(self):
-        suffix = '.pth' + f'.{self.epoch}' if self.epoch != self.num_epochs else ''
+        suffix = f'.pth.{self.epoch}' if self.epoch != self.num_epochs else '.pth'
         weight_path = self.args.record_path.with_suffix(suffix)
         
         is_save_interval = self.epoch % self.args.save_interval == 0
@@ -61,7 +64,7 @@ class BaseTrainer:
 
     def eval(self):
         self.model.eval()
-        test_correct, adv_correct, test_total = conduct_attack(args, self.model, self.test_loader, multi_pgd=False)
+        test_correct, adv_correct, test_total = conduct_attack(self.args, self.model, self.test_loader)
         self.robust_acc = adv_correct/test_total
         self.eval_records['epoch'].append(self.epoch)
         self.eval_records['test_acc'].append(test_correct/test_total)

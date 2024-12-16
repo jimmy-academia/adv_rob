@@ -183,4 +183,18 @@ def default_args():
     
     return args
 
+def str2float_int_bool(value):
+    if value.lower() in {'true', 'false'}:
+            return value.lower() == 'true'
+    try:
+        return float(value) if '.' in value else int(value)
+    except ValueError:
+        return value
+
+def convert_args(data):
+    data = {key: str2float_int_bool(value) for key, value in data.items()}
+    if 'device' in data:
+        data['device'] = torch.device(data['device'])
+    return data
+
 

@@ -1,7 +1,6 @@
 # copied from Avg_fineadjustTrainer
 
 import copy
-import time
 import torch
 from tqdm import tqdm
 
@@ -9,7 +8,7 @@ import operator
 from functools import reduce
 import logging
 
-from attacks.default import pgd_attack
+from attacks import pgd_attack
 from train_env.base import BaseTrainer
 
 from torch.optim.lr_scheduler import StepLR
@@ -48,7 +47,7 @@ class AdversarialSimilarityTrainer(BaseTrainer):
         self.scheduler_class = StepLR(self.optimizer_class, step_size=self.args.step_size, gamma=self.args.gamma)
 
     def train_one_epoch(self):
-        # instantiate/update: self.correct, self.total, self.runtime, self.loss
+        # instantiate/update: self.correct, self.total, self.loss
         
         dual_steps = ["predictor", "embedding"]
         for step in dual_steps:
@@ -70,28 +69,24 @@ class AdversarialSimilarityTrainer(BaseTrainer):
 
             pbar = tqdm(train_loader, ncols=90, desc='ast:pretrain')
             for images, labels in pbar:
-                start_time = time.time()
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
                 output = self.model.iptnet(images)
                 loss = torch.nn.MSELoss()(output, images)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                self.runtime += time.time() - start_time
                 pbar.set_postfix(loss=loss.item())
 
             pbar = tqdm(train_loader, ncols=90, desc='ast:adv pretrain')
             for images, labels in pbar:
-                start_time = time.time()
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
-                adv_images = pgd_attack(self.args, images, self.model.iptnet, images, True, attack_iters=7)
+                adv_images = pgd_attack(self.args, images, self.model.iptnet, images, sim=True, attack_iters=7)
                 output = self.model.iptnet(adv_images)
                 loss = torch.nn.MSELoss()(output, images)
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                self.runtime += time.time() - start_time
                 pbar.set_postfix(loss=loss.item())
 
             # adversarial similarity training
@@ -101,9 +96,8 @@ class AdversarialSimilarityTrainer(BaseTrainer):
 
             self.total = self.correct = 0
             for images, labels in pbar:
-                start_time = time.time()
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
-                adv_images = pgd_attack(self.args, images, self.model, labels, False, attack_iters=7)
+                adv_images = pgd_attack(self.args, images, self.model, labels, attack_iters=7)
                 output = self.model.iptnet(adv_images)
 
                 mseloss = torch.nn.MSELoss()(output, images)
@@ -117,7 +111,6 @@ class AdversarialSimilarityTrainer(BaseTrainer):
                 self.loss.backward()
                 self.optimizer_class.step()
 
-                self.runtime += time.time() - start_time
                 self.total += len(cl_output)
                 self.correct += (cl_output.argmax(dim=1) == labels).sum().item()
                 pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item()})

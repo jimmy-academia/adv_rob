@@ -13,9 +13,13 @@ pyrhon script/qualitative.py # TODO: script for qualitative tests
 
 > insert new experiment log from the top
 
+### 2024-12-16
+- TODO restart: step by step prepare setting => validation loss set early stopping
+- dataset by dataset finalize!
+
 ### 2024-12-7
 - reworked attack
-- next: check `train_evn/base.py`, `main_exp`, `train_env/ast.py` vs `attack.py` ==> esp. look at `pgd_attack`; coordinate so that pgd_attack can save iters, return 10, 20, 50 results together
+- next: check `train_env/base.py`, `main_exp`, `train_env/ast.py` vs `attack.py` ==> esp. look at `pgd_attack`; coordinate so that pgd_attack can save iters, return 10, 20, 50 results together
 ==> save time by not always doing test inference!!!
 - save evaluation results to json (dataset => model => train_env)
 

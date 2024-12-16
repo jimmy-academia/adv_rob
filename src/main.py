@@ -6,14 +6,12 @@ from utils import *
 from networks import get_model
 from datasets import get_dataloader
 from train_env import get_trainer
-from attacks import eval_attacks
-from debug import *
 
 import argparse
 
-# fix attack evaluation methods; adjust model and tranining
 def set_arguments():
     parser = argparse.ArgumentParser(description='Run experiments')
+    
     # environment
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--verbose', type=int, default=1, help='verbose')
@@ -22,9 +20,8 @@ def set_arguments():
     # logging decisions
     parser.add_argument('--ckpt', type=str, default='ckpt')
     parser.add_argument('--task', type=str, default='serial', help='store in task file or serial attempts')
-    parser.add_argument('--record_path_suffix', type=str, default='')
 
-    # main decisions
+    # model decisions
     parser.add_argument('--model', type=str, default='resnet4')
     # detail model decisions (iptnet)
     parser.add_argument('--patch_size', type=int, default=2)
@@ -39,13 +36,6 @@ def set_arguments():
     parser.add_argument('--train_env', type=str, default='AST')
     parser.add_argument('--attack_type', type=str, default='pgd')
 
-    # test time settings
-    # parser.add_argument('--test_time', type=str, default='none', choices=['none', 'standard', 'online'])
-    # parser.add_argument('--test_domain', type=str, default='corrupt', choices=['corrupt'])
-    # parser.add_argument('--corrupt_level', type=int, default=5)
-    # parser.add_argument('--corrupt_type', type=str, default='gaussian_noise', choices=common_corruptions+['all'])
-    # parser.add_argument('--test_time_iter', type=int, default=1) # 1,3,10
-
     # detail train/attack decisions
     parser.add_argument('--num_epochs', type=int, default=50)
     parser.add_argument('--batch_size', type=int, default=128)
@@ -59,8 +49,9 @@ def set_arguments():
     parser.add_argument('--eval_interval', type=int, default=1)
     parser.add_argument('--save_interval', type=int, default=10**10)
 
-    ## To return the argument immediately
-    parser.add_argument('--return_args', action='store_true')
+    # prevent overwrite for script/tasks when not set
+    parser.add_argument('--overwrite', action='store_true')
+
     args = parser.parse_args()
     return args
 
@@ -108,10 +99,12 @@ def main():
 
     args = set_arguments()
     args = post_process_args(args)
-    if args.return_args:
-        return args
+    
+    logging.info(f'== running exp: {args.train_env} on {args.model} for {args.dataset} ==> {args.record_path}')
 
-    logging.info(f'== running exp: {args.train_env} on {args.model} for {args.dataset} ==')
+    # if args.return_args:
+        # return args
+
     if args.train_env == 'AST':
         logging.info(f'[IPT info]: {args.patch_size}x{args.patch_size} patch, T={args.vocab_size}; Tok_ablation={args.tok_ablation}, direct={args.direct}, joint train={args.joint_train}')
     
@@ -136,7 +129,7 @@ def main():
     num_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     Num, whatB = params_to_memory(num_parameters)
     param_msg = f'model param count: {num_parameters} ≈ {Num}{whatB}'
-    dumpj({'arguments':string_args, 'param_msg': param_msg, 'params':[num_parameters, Num, whatB], 'training_records':trainer.training_records, ' eval_records':trainer.eval_records}, args.record_path.with_suffix('.json'))
+    dumpj({'arguments':string_args, 'param_msg': param_msg, 'param_items':[num_parameters, Num, whatB], 'training_records':trainer.training_records, ' eval_records':trainer.eval_records}, args.record_path.with_suffix('.json'))
     logging.info(f'......saved model, train_log to {args.record_path}.pth, .json')
 
 if __name__ == '__main__':
