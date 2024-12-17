@@ -94,7 +94,7 @@ class AdversarialSimilarityTrainer(BaseTrainer):
         
             ## todo, check if below can not joint dual step!
 
-            self.total = self.correct = 0
+            self.total = self.correct = self.loss = 0
             for images, labels in pbar:
                 images, labels = images.to(self.args.device), labels.to(self.args.device)
                 adv_images = pgd_attack(self.args, images, self.model, labels, attack_iters=7)
@@ -106,14 +106,15 @@ class AdversarialSimilarityTrainer(BaseTrainer):
                 optimizer.step()
 
                 cl_output = self.model.classifier(output.detach())
-                self.loss = torch.nn.CrossEntropyLoss()(cl_output, labels)
+                loss = self.criterion(cl_output, labels)
                 self.optimizer_class.zero_grad()
-                self.loss.backward()
+                loss.backward()
                 self.optimizer_class.step()
+                self.loss += loss.detach()
 
                 self.total += len(cl_output)
                 self.correct += (cl_output.argmax(dim=1) == labels).sum().item()
-                pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item()})
+                pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item()/self.total})
                 self.model.iptnet.reorder_embedding()
 
 

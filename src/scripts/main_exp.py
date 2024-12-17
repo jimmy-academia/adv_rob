@@ -50,6 +50,20 @@ def train_the_models():
                     # Run the command
                     run_command(cmd, shell=False)
 
+def _early_stopping(val_loss_list, patience = 5):
+    best_val_loss = float('inf')
+    best_epoch = 0
+    counter = 0
+    for i, val_loss in enumerate(val_loss_list):
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = i+1
+        else:
+            counter += 1
+            if counter >= patience:
+                break
+
+    return best_epoch
 
 def evaluate_the_models():
 
@@ -61,21 +75,31 @@ def evaluate_the_models():
         specs.batch_size = 128
         specs.image_size = 32 if dataset != 'imagenet' else 256
         specs.test_time = 'none'
+        specs.percent_val_split = 10
 
-        __, test_loader = get_dataloader(specs)
+        __, __, test_loader = get_dataloader(specs)
         for model_name in model_list:
             for train_env in train_env_list:
 
-                instance_label = f'{train_env}_{model_name}_{dataset}'
+                _instance = f'{train_env}_{model_name}_{dataset}'
 
-                logging.info(f'evaluating {instance_label}')
-                result_path = Path(f'ckpt/{TASK}/{instance_label}')
-                weight_path = result_path.with_suffix('.pth')
+                logging.info(f'evaluating {_instance}')
+                result_path = Path(f'ckpt/{TASK}/{_instance}')
                 instance_info = loadj(result_path.with_suffix('.json'))
+
                 args = instance_info.get('arguments')
                 args = SimpleNamespace(**convert_args(args))
                 __, Num, whatB = instance_info.get('param_items')
-                Record[instance_label].append(f'{Num}{whatB}')
+                Record[_instance].append(f'{Num}{whatB}')
+
+                ## determine model with early stopping
+                training_records = instance_info.get('training_records')
+                _epoch = _early_stopping(training_records.get('val_loss'))
+                Record[_instance].append(_epoch)
+                logging.info(f'early stoping at epoch {_epoch}')
+                
+                _suffix = '' if _epoch == args.num_epochs else f'.{_epoch}'
+                weight_path = result_path.with_suffix('.pth'+_suffix)
 
                 model = get_model(args)
                 model.load_state_dict(torch.load(weight_path, weights_only=True))
@@ -88,15 +112,16 @@ def evaluate_the_models():
 
                     if not done_test:
                         done_test=True
-                        Record[instance_label].append(test_correct/total)
+                        Record[_instance].append(test_correct/total)
                     if attack_type == 'pgd':
-                        Record[instance_label] += [a/total for a in adv_correct]
+                        Record[_instance] += [a/total for a in adv_correct]
                     else:
-                        Record[instance_label].append(adv_correct/total)
+                        Record[_instance].append(adv_correct/total)
 
-                Record[instance_label].append(instance_info.get('training_records').get('runtime')[-1])
+                Record[_instance].append(training_records.get('runtime')[_epoch])
 
                 dumpj(Record, Record_path)
+
 
 #############################################
 ####### USAGE: python printer.py main #######
@@ -114,8 +139,8 @@ def print_experiments():
 
         for model_name in model_list:
             for train_env in train_env_list:
-                instance_label = f'{train_env}_{model_name}_{dataset}'
-                inst_record = Record.get(instance_label)
+                _instance = f'{train_env}_{model_name}_{dataset}'
+                inst_record = Record.get(_instance)
                 inst_record = [str(x) for x in inst_record]
 
                 model_label = Model_Name_List[model_list.index(model_name)]

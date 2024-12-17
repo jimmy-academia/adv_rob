@@ -6,10 +6,11 @@ from collections import defaultdict
 from attacks import conduct_attack
 
 class BaseTrainer:
-    def __init__(self, args, model, train_loader, test_loader):
+    def __init__(self, args, model, train_loader, valid_loader, test_loader):
         self.args = args
         self.model = model
         self.train_loader = train_loader
+        self.valid_loader = valid_loader
         self.test_loader = test_loader
         
         ## logging
@@ -17,6 +18,8 @@ class BaseTrainer:
         self.num_epochs = args.num_epochs
         self.training_records = defaultdict(list)
         self.eval_records = defaultdict(list)
+
+        self.criterion = torch.nn.CrossEntropyLoss(reduction='sum')
 
     def train(self):
         self.train_setup() # for initializing self.model, self.optimizer, self.scheduler... etc.
@@ -29,6 +32,7 @@ class BaseTrainer:
             self.train_one_epoch()
             self.runtime += time.time() - start
 
+            self.valid_one_epoch()
             self.append_training_record()    
             self.periodic_save()
             self.periodic_check()
@@ -37,17 +41,29 @@ class BaseTrainer:
         raise NotImplementedError
 
     def train_one_epoch(self):
-        # instantiate/update: self.correct, self.total
+        # instantiate/update: self.correct, self.total, self.loss
         # calculate: self.loss
         raise NotImplementedError
 
+    def valid_one_epoch(self):
+        self.model.eval()
+        self.val_loss = 0
+        with torch.no_grad():
+            for images, labels in self.valid_loader:
+                images, labels = images.to(self.args.device), labels.to(self.args.device)
+                output = self.model(images)
+                loss = self.criterion(output, labels)
+                self.val_loss += loss.item()
+        self.val_loss /= len(self.valid_loader.dataset)
+
     def append_training_record(self):
         self.training_records['epoch'].append(self.epoch)
-        self.training_records['loss'].append(self.loss.cpu().item())
+        self.training_records['loss'].append(self.loss.cpu().item()/self.total)
+        self.training_records['val_loss'].append(self.val_loss)
         self.training_records['runtime'].append(self.runtime)
 
         logging.info(f'Epoch [{self.epoch}/{self.num_epochs}], '
-          f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item():.4f}')
+          f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item()/self.total:.4f}; Validation_Loss: {self.val_loss:.4f}')
 
     def periodic_check(self):
         is_eval_interval = self.epoch % self.args.eval_interval == 0

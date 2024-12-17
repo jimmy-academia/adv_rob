@@ -15,7 +15,7 @@ class AdversarialTrainer(BaseTrainer):
     def train_one_epoch(self):
         # instantiate/update: self.correct, self.total, self.loss
 
-        self.total = self.correct = 0
+        self.total = self.correct = self.loss = 0
         pbar = tqdm(self.train_loader, ncols=88, desc='adversarial training', leave=False)
 
         for images, labels in pbar:
@@ -24,12 +24,13 @@ class AdversarialTrainer(BaseTrainer):
 
             
             output = self.model(adv_images)
-            self.loss = torch.nn.CrossEntropyLoss()(output, labels)
+            loss = self.criterion(output, labels)
             
             self.optimizer.zero_grad()
-            self.loss.backward()
+            loss.backward()
             self.optimizer.step()
+            self.loss += loss.detach()
             
             self.total += len(output)
             self.correct += (output.argmax(dim=1) == labels).sum().item()
-            pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item()})
+            pbar.set_postfix({'acc': self.correct/self.total, 'loss': self.loss.cpu().item()/self.total})

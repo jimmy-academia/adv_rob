@@ -32,7 +32,11 @@ def set_arguments():
     parser.add_argument('--lambda1', type=float, default=0.3)
     parser.add_argument('--lambda2', type=float, default=0.1)
     parser.add_argument('--lambda3', type=float, default=0.03)
+
+    # Dataset 
     parser.add_argument('--dataset', type=str, default='cifar10') 
+    parser.add_argument('--percent_val_split', type=int, default=10) 
+    # Adv_training, attack_type
     parser.add_argument('--train_env', type=str, default='AST')
     parser.add_argument('--attack_type', type=str, default='pgd')
 
@@ -109,8 +113,8 @@ def main():
         logging.info(f'[IPT info]: {args.patch_size}x{args.patch_size} patch, T={args.vocab_size}; Tok_ablation={args.tok_ablation}, direct={args.direct}, joint train={args.joint_train}')
     
     model = get_model(args)
-    train_loader, test_loader = get_dataloader(args)
-    trainer = get_trainer(args, model, train_loader, test_loader)
+    train_loader, valid_loader, test_loader = get_dataloader(args)
+    trainer = get_trainer(args, model, train_loader, valid_loader, test_loader)
     
     trainer_settings = '''
     trainer.train() will 
