@@ -18,9 +18,11 @@ output_dir = Path('ckpt/output/')
 output_dir.mkdir(parents=True, exist_ok=True)
 Record_path = output_dir/f'{TASK}_record.json'
 
-model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
+# model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
+model_list = ['resnet4']
 train_env_list = ['AT', 'AST'] 
-dataset_list = ['mnist', 'cifar10']
+# dataset_list = ['mnist', 'cifar10']
+dataset_list = ['cifar10']
 
 def run_experiments():
     set_verbose(1)
@@ -58,10 +60,10 @@ def _early_stopping(val_loss_list, patience = 5):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_epoch = i+1
-        else:
-            counter += 1
-            if counter >= patience:
-                break
+        # else:
+        #     counter += 1
+        #     if counter >= patience:
+        #         break
 
     return best_epoch
 
@@ -118,7 +120,7 @@ def evaluate_the_models():
                     else:
                         Record[_instance].append(adv_correct/total)
 
-                Record[_instance].append(training_records.get('runtime')[_epoch])
+                Record[_instance].append(training_records.get('runtime')[_epoch-1])
 
                 dumpj(Record, Record_path)
 

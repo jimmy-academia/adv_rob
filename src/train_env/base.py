@@ -66,9 +66,10 @@ class BaseTrainer:
           f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item()/self.total:.4f}; Validation_Loss: {self.val_loss:.4f}')
 
     def periodic_check(self):
-        is_eval_interval = self.epoch % self.args.eval_interval == 0
-        if is_eval_interval or self.epoch == self.num_epochs:
-            self.eval()
+        if self.args.eval_interval > 0: # not -1
+            is_eval_interval = self.epoch % self.args.eval_interval == 0
+            if is_eval_interval or self.epoch == self.num_epochs:
+                self.eval()
 
     def periodic_save(self):
         suffix = f'.pth.{self.epoch}' if self.epoch != self.num_epochs else '.pth'

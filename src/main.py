@@ -50,7 +50,7 @@ def set_arguments():
     parser.add_argument('--gamma', type=float, default=0.5, help='lr schedule reduce rate')
     
     # periodic check and save
-    parser.add_argument('--eval_interval', type=int, default=1)
+    parser.add_argument('--eval_interval', type=int, default=-1)
     parser.add_argument('--save_interval', type=int, default=10**10)
 
     # prevent overwrite for script/tasks when not set
