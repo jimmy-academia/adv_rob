@@ -35,8 +35,8 @@ def conduct_attack(args, model, test_loader, multi_pgd=False, do_test=True):
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
-        # if args.attack_type == 'aa':
-            # break 
+        if args.attack_type == 'aa':
+            break 
 
     return test_correct, results if results else adv_correct, total
 

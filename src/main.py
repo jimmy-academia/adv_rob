@@ -41,8 +41,8 @@ def set_arguments():
     parser.add_argument('--attack_type', type=str, default='pgd')
 
     # detail train/attack decisions
-    parser.add_argument('--num_epochs', type=int, default=50)
-    parser.add_argument('--batch_size', type=int, default=128)
+    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=None)
     parser.add_argument('--eps', type=int, default=None)
     parser.add_argument('--attack_iters', type=int, default=50, help='iter for eval')
     parser.add_argument('--lr', type=float, default=1e-3, help='learn rate')
@@ -50,8 +50,8 @@ def set_arguments():
     parser.add_argument('--gamma', type=float, default=0.5, help='lr schedule reduce rate')
     
     # periodic check and save
-    parser.add_argument('--eval_interval', type=int, default=-1)
-    parser.add_argument('--save_interval', type=int, default=10**10)
+    parser.add_argument('--eval_interval', type=int, default=1)
+    parser.add_argument('--save_interval', type=int, default=-1)
 
     # prevent overwrite for script/tasks when not set
     parser.add_argument('--overwrite', action='store_true')
@@ -93,10 +93,14 @@ def post_process_args(args):
 
     args.lr = float(args.lr)
 
-    ## attacks
+    ## training/attacking
+    bs_list = {'mnist': 512, 'imagenet': 128}
+    if args.batch_size is None:
+        args.batch_size = bs_list[args.dataset] if args.dataset in bs_list else 256
+    
     if args.eps is None:
         args.eps = 0.3 if args.dataset == 'mnist' else 8/255
-
+    
     return args
 
 def main():

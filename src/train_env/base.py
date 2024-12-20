@@ -66,16 +66,18 @@ class BaseTrainer:
           f'Train_acc: {self.correct/self.total:.4f}, Loss: {self.loss.item()/self.total:.4f}; Validation_Loss: {self.val_loss:.4f}')
 
     def periodic_check(self):
+        # only check last if doing periodic check
         if self.args.eval_interval > 0: # not -1
             is_eval_interval = self.epoch % self.args.eval_interval == 0
             if is_eval_interval or self.epoch == self.num_epochs:
                 self.eval()
 
     def periodic_save(self):
+        # always saves the last epoch
         suffix = f'.pth.{self.epoch}' if self.epoch != self.num_epochs else '.pth'
         weight_path = self.args.record_path.with_suffix(suffix)
         
-        is_save_interval = self.epoch % self.args.save_interval == 0
+        is_save_interval =  (self.epoch % self.args.save_interval == 0) and self.args.save_interval > 0
         if is_save_interval or self.epoch == self.num_epochs:
             torch.save(self.model.state_dict(), weight_path)
 

@@ -4,6 +4,8 @@
 - source 
 ```bash
 cd src
+mkdir cache
+subl cache/rootdir # write the path to dataset download location
 python main.py --model resnetcifar_zlqh --dataset cifar10 # for individual runs
 python script/main_exp.py # script for full training and robustness evaluation
 pyrhon script/qualitative.py # TODO: script for qualitative tests

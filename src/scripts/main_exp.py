@@ -22,7 +22,7 @@ Record_path = output_dir/f'{TASK}_record.json'
 model_list = ['resnet4']
 train_env_list = ['AT', 'AST'] 
 # dataset_list = ['mnist', 'cifar10']
-dataset_list = ['cifar10']
+dataset_list = ['mnist']
 
 def run_experiments():
     set_verbose(1)
@@ -40,7 +40,7 @@ def train_the_models():
                     "--model", model_name,
                     "--train_env", train_env,
                     "--dataset", dataset,
-                    "--eval_interval", str(10**10),
+                    "--eval_interval", str(-1),
                     "--save_interval", str(1),
                     "--task", TASK
                 ]
@@ -52,7 +52,7 @@ def train_the_models():
                     # Run the command
                     run_command(cmd, shell=False)
 
-def _early_stopping(val_loss_list, patience = 5):
+def _early_stopping(val_loss_list, patience = 10):
     best_val_loss = float('inf')
     best_epoch = 0
     counter = 0
@@ -60,10 +60,10 @@ def _early_stopping(val_loss_list, patience = 5):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_epoch = i+1
-        # else:
-        #     counter += 1
-        #     if counter >= patience:
-        #         break
+        else:
+            counter += 1
+            if counter >= patience:
+                break
 
     return best_epoch
 
@@ -107,7 +107,7 @@ def evaluate_the_models():
                 model.load_state_dict(torch.load(weight_path, weights_only=True))
 
                 done_test = False # do test once for each instance
-                for attack_type in ['fgsm', 'pgd']:
+                for attack_type in ['fgsm', 'pgd', 'aa']:
                     args.attack_type = attack_type
                     results = conduct_attack(args, model, test_loader, multi_pgd=True, do_test = not done_test)
                     test_correct, adv_correct, total = results
