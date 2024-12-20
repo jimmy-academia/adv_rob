@@ -15,6 +15,10 @@ pyrhon script/qualitative.py # TODO: script for qualitative tests
 
 > insert new experiment log from the top
 
+### 2024-12-17
+- db49 working on mnist, solid working on cifar10
+
+
 ### 2024-12-16
 - TODO restart: step by step prepare setting => validation loss set early stopping
 - dataset by dataset finalize!

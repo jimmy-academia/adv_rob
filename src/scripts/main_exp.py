@@ -107,19 +107,21 @@ def evaluate_the_models():
                 model.load_state_dict(torch.load(weight_path, weights_only=True))
 
                 done_test = False # do test once for each instance
+                attack_results = []
                 for attack_type in ['fgsm', 'pgd', 'aa']:
                     args.attack_type = attack_type
-                    results = conduct_attack(args, model, test_loader, multi_pgd=True, do_test = not done_test)
-                    test_correct, adv_correct, total = results
+                    test_correct, adv_correct, total = conduct_attack(args, model, test_loader, multi_pgd=True, do_test = not done_test)
 
                     if not done_test:
                         done_test=True
                         Record[_instance].append(test_correct/total)
                     if attack_type == 'pgd':
-                        Record[_instance] += [a/total for a in adv_correct]
+                        attack_results += [a/total for a in adv_correct]
                     else:
-                        Record[_instance].append(adv_correct/total)
+                        attack_results.append(adv_correct/total)
 
+                Record[_instance] += attack_results
+                Record[_instance].append(min(attack_results))
                 Record[_instance].append(training_records.get('runtime')[_epoch-1])
 
                 dumpj(Record, Record_path)
@@ -149,7 +151,7 @@ def print_experiments():
                 plusipt = " + IPT" if train_env == 'AST' else ""
                 latex_line = f"& {model_label}{plusipt} ({inst_record[0]}) & {train_env} & " + " & ".join(inst_record[1:]) + " \\\\"
                 print(latex_line)
-            print("\\cmidrule(lr){2-10}")
+            print("\\cmidrule(lr){2-11}")
 
 
 if __name__ == '__main__':
