@@ -18,11 +18,9 @@ output_dir = Path('ckpt/output/')
 output_dir.mkdir(parents=True, exist_ok=True)
 Record_path = output_dir/f'{TASK}_record.json'
 
-# model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
-model_list = ['resnet4']
+model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
 train_env_list = ['AT', 'AST'] 
-# dataset_list = ['mnist', 'cifar10']
-dataset_list = ['mnist']
+dataset_list = ['mnist', 'cifar10', 'cifar100']
 
 def run_experiments():
     set_verbose(1)
@@ -94,11 +92,14 @@ def evaluate_the_models():
                 __, Num, whatB = instance_info.get('param_items')
                 Record[_instance].append(f'{Num}{whatB}')
 
-                ## determine model with early stopping
+                ## AST use early stopping
                 training_records = instance_info.get('training_records')
-                _epoch = _early_stopping(training_records.get('val_loss'))
+                _epoch = args.num_epochs
+                if train_env == 'AST':
+                    _epoch = _early_stopping(training_records.get('val_loss'))
+                    logging.info(f'early stoping at epoch {_epoch}')
+
                 Record[_instance].append(_epoch)
-                logging.info(f'early stoping at epoch {_epoch}')
                 
                 _suffix = '' if _epoch == args.num_epochs else f'.{_epoch}'
                 weight_path = result_path.with_suffix('.pth'+_suffix)
@@ -110,12 +111,12 @@ def evaluate_the_models():
                 attack_results = []
                 for attack_type in ['fgsm', 'pgd', 'aa']:
                     args.attack_type = attack_type
-                    test_correct, adv_correct, total = conduct_attack(args, model, test_loader, multi_pgd=True, do_test = not done_test)
+                    test_correct, adv_correct, total = conduct_attack(args, model, test_loader, multi=True, do_test = not done_test)
 
                     if not done_test:
                         done_test=True
                         Record[_instance].append(test_correct/total)
-                    if attack_type == 'pgd':
+                    if attack_type in ['pgd', 'aa']:
                         attack_results += [a/total for a in adv_correct]
                     else:
                         attack_results.append(adv_correct/total)
