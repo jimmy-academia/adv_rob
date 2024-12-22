@@ -6,7 +6,7 @@ from collections import defaultdict
 from types import SimpleNamespace
 from pathlib import Path
 
-from utils import set_verbose, run_command, loadj, dumpj, convert_args
+from utils import set_verbose, run_command, loadj, dumpj, convert_args, model_to_kb
 from attacks import conduct_attack
 from networks import get_model
 from datasets import get_dataloader
@@ -18,9 +18,10 @@ output_dir = Path('ckpt/output/')
 output_dir.mkdir(parents=True, exist_ok=True)
 Record_path = output_dir/f'{TASK}_record.json'
 
-model_list = ['lenet', 'mobilenet', 'resnet4'] #'efficientnet', 
+model_list = ['resnet4']
+# model_list = ['lenet', 'mobilenet', 'resnet4', 'efficientnet']
 train_env_list = ['AT', 'AST'] 
-dataset_list = ['mnist', 'cifar10', 'cifar100']
+dataset_list = ['cifar10']
 
 def run_experiments():
     set_verbose(1)
@@ -89,8 +90,9 @@ def evaluate_the_models():
 
                 args = instance_info.get('arguments')
                 args = SimpleNamespace(**convert_args(args))
-                __, Num, whatB = instance_info.get('param_items')
-                Record[_instance].append(f'{Num}{whatB}')
+                # __, Num, whatB = instance_info.get('param_items')
+                # Record[_instance].append(f'{Num}{whatB}')
+
 
                 ## AST use early stopping
                 training_records = instance_info.get('training_records')
@@ -99,7 +101,6 @@ def evaluate_the_models():
                     _epoch = _early_stopping(training_records.get('val_loss'))
                     logging.info(f'early stoping at epoch {_epoch}')
 
-                Record[_instance].append(_epoch)
                 
                 _suffix = '' if _epoch == args.num_epochs else f'.{_epoch}'
                 weight_path = result_path.with_suffix('.pth'+_suffix)
@@ -108,16 +109,21 @@ def evaluate_the_models():
                 model.load_state_dict(torch.load(weight_path, weights_only=True))
                 model.eval()
 
+
+                Record[_instance].append(f'{model_to_kb(model)}KB')
+                Record[_instance].append(f'epoch:{_epoch}')
+
                 done_test = False # do test once for each instance
                 attack_results = []
-                for attack_type in ['fgsm', 'pgd', 'aa']:
+                # for attack_type in ['fgsm', 'pgd', 'aa']:
+                for attack_type in ['pgd20', 'aa']:
                     args.attack_type = attack_type
                     test_correct, adv_correct, total = conduct_attack(args, model, test_loader, multi=True, do_test = not done_test)
 
                     if not done_test:
                         done_test=True
                         Record[_instance].append(test_correct/total)
-                    if attack_type in ['pgd', 'aa']:
+                    if attack_type in ['pgd', 'aa_split']:
                         attack_results += [a/total for a in adv_correct]
                     else:
                         attack_results.append(adv_correct/total)

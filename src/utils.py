@@ -114,6 +114,12 @@ common_corruptions = ['gaussian_noise', 'shot_noise', 'impulse_noise', 'defocus_
 
 # ==== Helper Functions ===== #
 
+def model_to_kb(model):
+    trainable_params = sum(p.numel() * p.element_size() for p in model.parameters() if p.requires_grad)
+    trainable_params_kb = int(trainable_params / 1024)
+    return trainable_params_kb
+
+
 def params_to_memory(params, precision=32):
     # Precision in bits, default is 32-bit (float32)
     bytes_per_param = precision / 8  # Convert bits to bytes

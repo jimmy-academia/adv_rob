@@ -3,6 +3,7 @@ import torch.nn as nn
 from functools import partial
 from autoattack import AutoAttack
 from tqdm import tqdm
+import logging
 
 '''
 autoattack ref: https://github.com/fra31/auto-attack
@@ -13,8 +14,14 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
         adv_perturb = fgsm_attack
     elif args.attack_type == 'pgd':
         adv_perturb = partial(pgd_attack, multi=multi)
+    elif args.attack_type == 'pgd20':
+        adv_perturb = partial(pgd_attack, multi=False, attack_iters=20)
+    elif args.attack_type == 'aa_list':
+        adv_perturb = partial(auto_attack, multi=True)
     elif args.attack_type == 'aa':
-        adv_perturb = partial(auto_attack, multi=multi)
+        adv_perturb = partial(auto_attack, multi=False)
+    elif args.attack_type == 'square':
+        adv_perturb = square_attack
     else:
         raise NotImplementedError(f'{args.attack_type} is not defined')
 
@@ -22,6 +29,7 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
     results = [0] * (3 if args.attack_type == 'pgd' else 4) if multi and args.attack_type in ['pgd', 'aa'] else None
 
     model.to(args.device)
+    count = 0
     for images, labels in tqdm(test_loader, ncols=90, desc=f'conduct {args.attack_type} attack'):
         images, labels = images.to(args.device), labels.to(args.device)
 
@@ -39,6 +47,11 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
+        count+=1
+        if args.attack_type == 'aa' and count >= 5:
+            break
+
+    logging.info(f'attack result: {[r/total for r in results] if results else adv_correct/total}')
     return test_correct, results if results else adv_correct, total
 
 def fgsm_attack(args, primary, model, labels):
@@ -87,3 +100,8 @@ def auto_attack(args, primary, model, labels, _version='standard', multi=True):
     else:
         adv = adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
     return adv
+
+def square_attack(args, primary, model, labels):
+    adversary = AutoAttack(model, norm='Linf', eps=args.eps, version='custom', attacks_to_run=['square'], verbose=False, device=args.device)
+    adv = adversary.run_standard_evaluation(primary, labels, bs=primary.size(0))
+    return adv    
