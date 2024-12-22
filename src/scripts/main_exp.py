@@ -18,7 +18,7 @@ output_dir = Path('ckpt/output/')
 output_dir.mkdir(parents=True, exist_ok=True)
 Record_path = output_dir/f'{TASK}_record.json'
 
-model_list = ['lenet', 'efficientnet', 'mobilenet', 'resnet4']
+model_list = ['lenet', 'mobilenet', 'resnet4'] #'efficientnet', 
 train_env_list = ['AT', 'AST'] 
 dataset_list = ['mnist', 'cifar10', 'cifar100']
 
@@ -106,6 +106,7 @@ def evaluate_the_models():
 
                 model = get_model(args)
                 model.load_state_dict(torch.load(weight_path, weights_only=True))
+                model.eval()
 
                 done_test = False # do test once for each instance
                 attack_results = []
