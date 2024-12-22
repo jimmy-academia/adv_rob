@@ -18,10 +18,9 @@ output_dir = Path('ckpt/output/')
 output_dir.mkdir(parents=True, exist_ok=True)
 Record_path = output_dir/f'{TASK}_record.json'
 
-model_list = ['resnet4']
-# model_list = ['lenet', 'mobilenet', 'resnet4', 'efficientnet']
+model_list = ['lenet', 'mobilenet', 'resnet4', 'efficientnet']
 train_env_list = ['AT', 'AST'] 
-dataset_list = ['cifar10']
+dataset_list = ['mnist', 'cifar10'] #'cifar100'
 
 def run_experiments():
     set_verbose(1)

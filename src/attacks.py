@@ -26,7 +26,7 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
         raise NotImplementedError(f'{args.attack_type} is not defined')
 
     total = test_correct = adv_correct = 0
-    results = [0] * (3 if args.attack_type == 'pgd' else 4) if multi and args.attack_type in ['pgd', 'aa'] else None
+    results = [0] * (3 if args.attack_type == 'pgd' else 4) if multi and args.attack_type in ['pgd', 'aa_list'] else None
 
     model.to(args.device)
     count = 0
@@ -47,8 +47,7 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
-        count+=1
-        if args.attack_type == 'aa' and count >= 5:
+        if args.attack_type == 'aa':
             break
 
     logging.info(f'attack result: {[r/total for r in results] if results else adv_correct/total}')
