@@ -114,15 +114,14 @@ def evaluate_the_models():
 
                 done_test = False # do test once for each instance
                 attack_results = []
-                # for attack_type in ['fgsm', 'pgd', 'aa']:
-                for attack_type in ['pgd20', 'aa']:
+                for attack_type in ['fgsm', 'pgd', 'aa']:
                     args.attack_type = attack_type
                     test_correct, adv_correct, total = conduct_attack(args, model, test_loader, multi=True, do_test = not done_test)
 
                     if not done_test:
                         done_test=True
                         Record[_instance].append(test_correct/total)
-                    if attack_type in ['pgd', 'aa_split']:
+                    if attack_type in ['pgd', 'aa_list']:
                         attack_results += [a/total for a in adv_correct]
                     else:
                         attack_results.append(adv_correct/total)

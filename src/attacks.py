@@ -47,9 +47,6 @@ def conduct_attack(args, model, test_loader, multi=False, do_test=True):
             adv_correct += float((adv_pred.argmax(dim=1) == labels).sum())
         total += len(labels)
 
-        if args.attack_type == 'aa':
-            break
-
     logging.info(f'attack result: {[r/total for r in results] if results else adv_correct/total}')
     return test_correct, results if results else adv_correct, total
 
